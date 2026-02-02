@@ -5,7 +5,6 @@
 
 ### 1.1 Schematics
 ![Improved schematic](./images/improved-schematic.png)
-TODO: Add image
 
 
 #### Principles:
