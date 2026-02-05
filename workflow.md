@@ -92,6 +92,7 @@ interface uvm_orchestrator_if #(
         input seq_dut_addr, seq_dut_wdata, seq_dut_valid,
         output dut_addr, dut_wdata, dut_valid
     );
+    // TODO: Note that dut can return data too, how do we connect this to coverage?
 
     modport sequence (
         input  clk, rst_n,
@@ -111,3 +112,6 @@ Effectively, the solver would have a bank of PRNGs. Once the Sequence FSM reques
 
 **Interface:**
 TODO: implement interface
+
+## Coverage FSM
+Whenever the sequence 
