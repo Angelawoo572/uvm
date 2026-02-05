@@ -4,7 +4,7 @@
 System generates **3 RTL blocks** + an **orchestrator block**:
 ![System-overview](./images/system-overview.png)
 
-The **4 RTL blocks connect as such:
+The **4 RTL blocks** connect as such:
 ![Lower-level-system-overview](./images/system-overview-1.png)
 
 ## Execution flow
@@ -32,7 +32,7 @@ Step 5: Seq 0 done, releases TOKEN
         [Repeat for all sequences...]
 ```
 
-## Top orchestrator
+## Orchestrator
 Only **1 sequence** can drive **1 DUT** at a time.
 
 The `token manager` and `DUT mux` work as such:
@@ -58,7 +58,7 @@ The `token manager` and `DUT mux` work as such:
 
 **Interface:**
 ```systemverilog
-interface uvm_top_orchestrator_if #(
+interface uvm_orchestrator_if #(
     parameter int NUM_SEQUENCES = 8
 )(
     input  logic clk,
@@ -69,10 +69,12 @@ interface uvm_top_orchestrator_if #(
     logic [NUM_SEQUENCES-1:0] sequence_done;        // Seq asserts when finished
 
     // DUT Mux ===
+    // DUT Mux -> DUT
     logic [DUT_ADDR_W-1:0]    dut_addr;             // muxed from seq_dut_addr
     logic [DUT_DATA_W-1:0]    dut_wdata;            // muxed from seq_dut_wdata
     logic                     dut_valid;            // muxed from seq_dut_valid
 
+    // Sequence -> DUT Mux
     logic [DUT_ADDR_W-1:0]    seq_dut_addr  [NUM_SEQUENCES]; 
     logic [DUT_DATA_W-1:0]    seq_dut_wdata [NUM_SEQUENCES];
     logic [NUM_SEQUENCES-1:0] seq_dut_valid;
