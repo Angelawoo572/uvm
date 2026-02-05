@@ -49,7 +49,36 @@ The `token manager` and `DUT mux` work as such:
   └─┬───┘     └────┬┘            
     └──────┬───────┘            
      ┌─────▼─────┐              
-     │ DUT Mux   │              
-     └───────────┘               
-                                            
-```                           
+     │  DUT mux  │◄───────  token_grant    
+     └─────┬─────┘              
+           │                   
+           ▼                     
+          DUT                                                                     
+```      
+
+**Interface:**
+```systemverilog
+interface uvm_top_orchestrator_if #(
+    parameter int NUM_SEQUENCES = 8
+)(
+    input  logic clk,
+    input  logic rst_n
+);
+    // Token Manager ===
+    logic [NUM_SEQUENCES-1:0] token_grant;          // One-hot: controls which seq drives DUT
+    logic [NUM_SEQUENCES-1:0] sequence_done;        // Seq asserts when finished
+
+    // DUT Mux ===
+    logic [DUT_ADDR_W-1:0]    dut_addr;             // muxed from seq_dut_addr
+    logic [DUT_DATA_W-1:0]    dut_wdata;            // muxed from seq_dut_wdata
+    logic                     dut_valid;            // muxed from seq_dut_valid
+
+    logic [DUT_ADDR_W-1:0]    seq_dut_addr  [NUM_SEQUENCES]; 
+    logic [DUT_DATA_W-1:0]    seq_dut_wdata [NUM_SEQUENCES];
+    logic [NUM_SEQUENCES-1:0] seq_dut_valid;
+
+endinterface
+```
+TODO: Add modports
+
+## Sequence FSM
