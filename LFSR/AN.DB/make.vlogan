@@ -1,0 +1,17 @@
+
+VLOGAN	= vlogan
+VLOGAN_OPT	= -sverilog -full64
+
+all :		_VCSgd_IUQLLd_1.db \
+	_VCSgd_vx2DNc_1.db \
+
+
+
+_VCSgd_IUQLLd_1.db :	LFSR.sv 
+		${VLOGAN}  ${VLOGAN_OPT} LFSR.sv
+
+
+_VCSgd_vx2DNc_1.db :	LFSR_tb.sv 
+		${VLOGAN}  ${VLOGAN_OPT} LFSR_tb.sv
+
+
