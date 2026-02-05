@@ -59,7 +59,9 @@ The `token manager` and `DUT mux` work as such:
 **Interface:**
 ```systemverilog
 interface uvm_orchestrator_if #(
-    parameter int NUM_SEQUENCES = 8
+    parameter int NUM_SEQUENCES = 8,
+    parameter int DUT_ADDR_W = 32,
+    parameter int DUT_DATA_W = 32
 )(
     input  logic clk,
     input  logic rst_n
