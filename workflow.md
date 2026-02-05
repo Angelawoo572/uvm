@@ -33,7 +33,9 @@ Step 5: Seq 0 done, releases TOKEN
 ```
 
 ## Top orchestrator
-Only **1 sequence** can drive **1 DUT** at a time:
+Only **1 sequence** can drive **1 DUT** at a time.
+
+The `token manager` and `DUT mux` work as such:
 ```bash
 ┌───────────────────┐            
 │ Top Orchestrator  │            
@@ -45,7 +47,7 @@ Only **1 sequence** can drive **1 DUT** at a time:
   ┌─▼───┐     ┌──▼──┐            
   │Seq 0│ ... │Seq n│            
   └─┬───┘     └────┬┘            
-    └──────┬───────┴            
+    └──────┬───────┘            
      ┌─────▼─────┐              
      │ DUT Mux   │              
      └───────────┘               
