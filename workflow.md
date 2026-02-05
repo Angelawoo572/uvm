@@ -19,7 +19,7 @@ Step 2: Seq 0 requests Solver
         │
 Step 3: Seq 0 receives solved data
         │
-        ├──→ Seq 0: Drives transaction to DUT
+        ├──→ Seq 0: Drives transaction to DUT through Orchestrator
         │
 Step 4: DUT accepts transaction
         │
@@ -33,12 +33,12 @@ Step 5: Seq 0 done, releases TOKEN
 ```
 
 ## Orchestrator
-Only **1 sequence** can drive **1 DUT** at a time.
+Only **1 sequence** can drive the DUT at a time
 
-The `token manager` and `DUT mux` work as such:
+The `token manager` and `DUT mux` within the orchestrator work as such:
 ```bash
 ┌───────────────────┐            
-│ Top Orchestrator  │            
+│   Orchestrator    │            
 │  (Token manager)  │            
 └───┬───────────────┘            
     │token_grant (one-hot)       
@@ -48,9 +48,10 @@ The `token manager` and `DUT mux` work as such:
   │Seq 0│ ... │Seq n│            
   └─┬───┘     └────┬┘            
     └──────┬───────┘            
-     ┌─────▼─────┐              
-     │  DUT mux  │◄───────  token_grant    
-     └─────┬─────┘              
+     ┌─────▼────────┐   
+     │ Orchestrator │          
+     │  (DUT mux)   │◄───────  token_grant    
+     └─────┬────────┘              
            │                   
            ▼                     
           DUT                                                                     
@@ -81,8 +82,28 @@ interface uvm_orchestrator_if #(
     logic [DUT_DATA_W-1:0]    seq_dut_wdata [NUM_SEQUENCES];
     logic [NUM_SEQUENCES-1:0] seq_dut_valid;
 
+    modport orchestrator (
+        input  clk, rst_n,
+        // Token manager
+        output token_grant, 
+        input  sequence_done,
+
+        // DUT mux
+        input seq_dut_addr, seq_dut_wdata, seq_dut_valid,
+        output dut_addr, dut_wdata, dut_valid
+    );
+
+    modport sequence (
+        input  clk, rst_n,
+        // Token manager
+        input  token_grant,
+        output sequence_done,
+
+        // DUT mux
+        output seq_dut_addr, seq_data_wdata, seq_dut_valid
+    );
+    
 endinterface
 ```
-TODO: Add modports
 
 ## Sequence FSM
