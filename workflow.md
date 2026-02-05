@@ -114,4 +114,4 @@ Effectively, the solver would have a bank of PRNGs. Once the Sequence FSM reques
 TODO: implement interface
 
 ## Coverage FSM
-Whenever the sequence 
+Whenever the sequence executes a transaction, it can trigger a `cov_sample()` pulse to the coverage FSM which then takes a snapshot of inputs/outputs from the DUT interface.
