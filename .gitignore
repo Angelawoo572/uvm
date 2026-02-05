@@ -70,3 +70,6 @@ vivado*
 *.jou
 .Xil/*
 *.txt
+
+# vscode files
+.vscode/*
