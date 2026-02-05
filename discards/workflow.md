@@ -35,3 +35,9 @@ top
 - Stimuli FSM operates asynchronously with wait state (multi-cycle operations)
 - Coverage FSM samples on explicit pulse from active sequence
 - All modules synchronized to single global clock
+
+
+### Notes
+- Some key ideas of monitors/drivers/sequencers
+- Label signals in between them
+- Improve diagram with specific signals
