@@ -13,9 +13,9 @@ Step 1: Orchestrator grants TOKEN to Sequence 0
         │
         ├──→ Seq 0: "I need random data"
         │
-Step 2: Seq 0 requests Solver
+Step 2: Seq 0 requests Stimuli
         │
-        ├──→ Solver: Generates random values (5 cycles)
+        ├──→ Stimuli: Generates random values (5 cycles)
         │
 Step 3: Seq 0 receives solved data
         │
@@ -102,7 +102,7 @@ interface uvm_orchestrator_if #(
         // DUT mux
         output seq_dut_addr, seq_data_wdata, seq_dut_valid
     );
-    
+
 endinterface
 ```
 
