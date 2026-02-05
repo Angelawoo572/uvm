@@ -106,4 +106,8 @@ interface uvm_orchestrator_if #(
 endinterface
 ```
 
-## Sequence FSM
+## Stimuli FSM (solver)
+Effectively, the solver would have a bank of PRNGs. Once the Sequence FSM requests a constrained stimuli, the solver picks the PRNG which best suits the constraints and returns a `solved_data` value.
+
+**Interface:**
+TODO: implement interface
