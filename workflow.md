@@ -1,10 +1,10 @@
 # UVM -> RTL execution flow
 
 ## System overview
-System generates 3 RTL blocks + an orchestrator block:
+System generates **3 RTL blocks** + an **orchestrator block**:
 ![System-overview](./images/system-overview.png)
 
-The 4 RTL blocks connect as such:
+The **4 RTL blocks connect as such:
 ![Lower-level-system-overview](./images/system-overview-1.png)
 
 ## Execution flow
@@ -32,3 +32,22 @@ Step 5: Seq 0 done, releases TOKEN
         [Repeat for all sequences...]
 ```
 
+## Top orchestrator
+Only **1 sequence** can drive **1 DUT** at a time:
+```bash
+┌───────────────────┐            
+│ Top Orchestrator  │            
+│  (Token manager)  │            
+└───┬───────────────┘            
+    │token_grant (one-hot)       
+    ├────────────┐               
+    │            │               
+  ┌─▼───┐     ┌──▼──┐            
+  │Seq 0│ ... │Seq n│            
+  └─┬───┘     └────┬┘            
+    └──────┬───────┴            
+     ┌─────▼─────┐              
+     │ DUT Mux   │              
+     └───────────┘               
+                                            
+```                           
