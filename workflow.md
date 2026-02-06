@@ -115,3 +115,24 @@ TODO: implement interface
 
 ## Coverage FSM
 Whenever the sequence executes a transaction, it can trigger a `cov_sample()` pulse to the coverage FSM which then takes a snapshot of inputs/outputs from the DUT interface.
+
+**Workflow**:
+I think Andrew has a great idea
+
+## Sequence FSM
+**State transitions:**
+```bash
+       [IDLE] 
+          ↓                       
+    Wait for token                
+          ↓                       
+   [REQ_RANDOM] ← Request solver  
+          ↓                       
+   [WAIT_SOLVE] ← Solver solving  
+          ↓                       
+    [DRIVE_DUT] ← Drive interface 
+          ↓                       
+   [SAMPLE_COV] ← Record result          
+          ↓    (if sample_cov())  
+       [DONE] 
+```
