@@ -7,6 +7,7 @@ The goals is to emulate a UVM-based testbench, meaning that the code is made syn
 ![High level schematic](./images/schematic.png)
 
 ## Directories
-1. Examples of UVM code: [uvm_samples/](./uvm_samples/)
-2. Everything stimuli-related: [stimuli/](./stimuli/)
-3. Everything coverage-related: [coverage/](./coverage/)
+1. Examples of UVM code: [uvm_samples](./uvm_samples/)
+2. Everything stimuli-related: [stimuli](./stimuli/)
+3. Everything coverage-related: [coverage](./coverage/)
+4. Everything parser-related: [parser](./parser/)
