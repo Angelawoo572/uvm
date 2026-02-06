@@ -108,10 +108,35 @@ endinterface
 ```
 
 ## Stimuli FSM (solver)
-Effectively, the solver would have a bank of PRNGs. Once the Sequence FSM requests a constrained stimuli, the solver picks the PRNG which best suits the constraints and returns a `solved_data` value.
+Effectively, the solver would have a bank of PRNGs. Once the Sequence FSM requests a constrained stimuli, the solver picks the PRNG which best suits the constraints and returns a `solved_data` value. I think some notion of a `constraint_id` which is pre-processed by the software would be great. (i.e. `constraint_id == 1` maps to a PRNG which solves for even random numbers between 12 and 256, etc.)
 
 **Interface:**
-TODO: implement interface
+```systemverilog
+module uvm_stimuli #(
+    parameter int NUM_CONSTRAINTS = 64,
+    parameter int CONSTRAINT_ID_W = 8,
+    parameter int SOLVED_DATA_W = 128,
+    parameter int SEQ_ID_W = 8
+)(
+    input  logic clk, rst,
+
+    // Request interface ===
+    input  logic solve_req,
+    input  logic [CONSTRAINT_ID_W-1:0] constraint_id,
+    input  logic [SEQ_ID_W-1:0] sequence_id, // ID of sequence FSM
+
+    // Response interface ===
+    output logic solve_done,
+    output logic [SEQ_ID_W-1:0] solved_data,
+
+    // PRNG control ===
+    input  logic [31:0] global_seed,
+    input  logic seed_load,
+    input  logic [2:0] seed_load,
+
+    // Error messages? (i.e. solve_failed, timeout, etc.)
+)
+```
 
 ## Coverage FSM
 Whenever the sequence executes a transaction, it can trigger a `cov_sample()` pulse to the coverage FSM which then takes a snapshot of inputs/outputs from the DUT interface.
