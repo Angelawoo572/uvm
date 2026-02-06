@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SystemVerilog Coverage Contract",
+  "type": "object",
+  "$ref": "#/$defs/coverage_model",
+
+  "$defs": {
+    "coverage_model": {
+      "type": "object",
+      "properties": {
+        "reference": { "type": "string" },
+        "covergroups": { "type": "array", "items": { "$ref": "#/$defs/covergroup" } }
+      },
+      "required": ["reference", "covergroups"]
+    },
+
+    "covergroup": {
+      "type": "object",
+      "properties": {
+        "reference": { "type": "string" },
+        "sample_event": { "type": "string" },
+        "coverpoints": { "type": "array", "items": { "$ref": "#/$defs/coverpoint" } }
+      },
+      "required": ["reference", "sample_event", "coverpoints"]
+    },
+
+    "coverpoint": {
+      "type": "object",
+      "properties": {
+        "reference": { "type": "string" },
+        "expression": { "type": "string" },
+        "signals": { "type": "array", "items": { "$ref": "#/$defs/signal" } },
+        "bins": { "type": "array", "items": { "$ref": "#/$defs/bin" } }
+      },
+      "required": ["reference", "signals", "width", "bins"]
+    },
+    "signal": {
+      "type": "object",
+      "properties": {
+        "reference": { "type": "string" },
+        "width": { "type": "integer"}
+      },
+      "required": ["reference, width"]
+    },
+
+    "bin": {
+      "type": "object",
+      "properties": {
+        "reference": { "type": "string" },
+        "states": { "type": "array", "items": { "type": "integer" } }
+      },
+      "required": ["reference", "states"]
+    }
+  }
+}
