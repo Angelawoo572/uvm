@@ -1,5 +1,10 @@
 # UVM -> RTL execution flow
 
+TODO:
+- Sequences do not trigger sampling -> it is done by coverage collector that receives transactions from monitor
+- Flow should include drivers and monitors (question: so we don't abstract it away?)
+- SHould distinct betweeen sequence_item and sequence
+
 ## System overview
 System generates **3 RTL blocks** + an **orchestrator block**:
 ![System-overview](./images/system-overview.png)
