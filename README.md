@@ -6,6 +6,8 @@ The goals is to emulate a UVM-based testbench, meaning that the code is made syn
 ## Schematic
 ![High level schematic](./images/schematic.png)
 
+**NOTE**: Refer to [workflow.md](./workflow.md) for latest workflow plans on how everything connects and executes together.
+
 ## Directories
 1. Examples of UVM code: [uvm_samples](./uvm_samples/)
 2. Everything stimuli-related: [stimuli](./stimuli/)
