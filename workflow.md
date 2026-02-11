@@ -1,6 +1,6 @@
 # UVM -> RTL execution flow
 
-TODO:
+Errors:
 - Sequences do not trigger sampling -> it is done by coverage collector that receives transactions from monitor (then waht triggers sampling?)
 - Flow should include drivers and monitors (question: so we don't abstract it away?) (sequence drives them?)
 - SHould distinct betweeen sequence_item and sequencen (Independet fsms for sequence, and for loop for sequence_item?)
@@ -8,6 +8,10 @@ TODO:
 Corrections:
 - Sequences include mulitple small little FSMs of sequence_item. They only talk to driver and stimuli. Driver passively observes signals, can signal if skip sequence_item.
 - Coverage (monitor) has its own independent fsm/logic on when to sample.
+- Add interfaces for modules:
+    - Sequence <-> Solver/Stimuli
+    - Coverage <-> DUT interface (?)
+
 
 ## System overview
 System generates **3 RTL blocks** + an **orchestrator block**:
