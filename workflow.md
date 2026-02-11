@@ -30,3 +30,32 @@ Step 2: If Coverage FSM decides to sample:
     - Coverage FSM updates counters/bins based on sampled transaction
 Step 3: Repeat until coverage goals are met or test terminates from Orchestrator
 ```
+## Interface overview
+There are 5 handshake protocols/interfaces required:
+1. Orchestrator <-> Sequence FSM
+2. Sequence FSM <-> Stimuli FSM
+3. Orchestrator <-> Coverage FSM
+4. Sequence FSM <-> Driver
+5. Coverage FSM <-> Monitor
+
+**TODO**:
+- [ ] Define handshake within the sequence FSM too? (between sequence <-> seq_item?)
+
+#### Orchestrator <-> Sequence FSM
+```systemverilog
+```
+
+#### Sequence FSM <-> Stimuli FSM
+```systemverilog
+```
+
+#### Orchestrator <-> Coverage FSM
+```systemverilog
+```
+
+#### Sequence FSM <-> Driver
+**NOTE**: Include how driver could signal if seq_item should be skipped
+```systemverilog
+```
+
+#### Coverage FSM <-> Monitor
