@@ -30,6 +30,9 @@ Step 2: If Coverage FSM decides to sample:
     - Coverage FSM updates counters/bins based on sampled transaction
 Step 3: Repeat until coverage goals are met or test terminates from Orchestrator
 ```
+
+**Note**: Driver and Monitor should be protocol-aware
+
 ## Interface overview
 There are 5 handshake protocols/interfaces required:
 1. Orchestrator <-> Sequence FSM
