@@ -7,6 +7,7 @@ System generates **3 RTL blocks** (Sequence, Coverage and Stimuli FSMs)  + an **
 
 **TODO**: 
 - [ ] Will driver and monitor be somewhat static? (i.e. will they change much between designs?)
+- [ ] Will Coverage decide when to stop? Or orchestrator? Or by finishing all sequences?
 
 ## Execution overview
 There will be 2 independent workflows:
@@ -51,21 +52,101 @@ Across all interfaces:
 
 #### Orchestrator <-> Sequence FSM
 ```systemverilog
+interface orch_seq_ifm #(
+    parameter int NUM_SEQUENCES = 8
+) (
+    input  logic clk, rst_n
+);
+    
+    // Orchestrator -> Sequence
+    logic [NUM_SEQUENCES-1:0] token_grant;
+    logic                     start;
+
+    // Sequence -> Orchestrator
+    logic [NUM_SEQUENCES-1:0] done;
+    logic [NUM_SEQUENCES-1:0] busy;
+
+endinterface
 ```
 
 #### Sequence FSM <-> Stimuli FSM
 ```systemverilog
+interface seq_stim_if #(
+    parameter DATA_W = 32
+)(
+    input  logic clk, rst_n
+);
+    // Request 
+    logic [7:0] req_id;  // some database of constraints
+    logic       req_valid;
+    logic       req_ready;
+
+    // Response
+    logic              rsp_valid;
+    logic              rsp_ready;
+    logic [DATA_W-1:0] rsp_data;
+
+endinterface
 ```
 
 #### Orchestrator <-> Coverage FSM
 ```systemverilog
+interface orch_cov_if (
+    input  logic clk, rst
+);
+
+    // Orchestrator -> Coverage
+    logic enable;
+    logic stop;
+
+    // Coverage -> Orchestrator
+    logic        done;
+    logic [15:0] coverage_pct; // optional?
+
+endinterface
 ```
 
 #### Sequence FSM <-> Driver
 **NOTE**: Include how driver could signal if seq_item should be skipped
 ```systemverilog
+interface seq_drv_if #(
+    parameter TX_W = 64
+)(
+    input logic clk, rst_n
+);
+
+  // Request channel
+  logic         tx_valid;
+  logic         tx_ready;
+  logic [TX_W-1:0] tx_payload;
+
+  // Response channel
+  logic         rsp_valid;
+  logic         rsp_ready;
+  typedef enum logic [1:0] {
+    TX_OK,
+    TX_SKIP,
+    TX_ERROR
+  } tx_status_t;
+  tx_status_t status;
+
+endinterface
 ```
 
 #### Coverage FSM <-> Monitor
 ```systemverilog
+interface cov_mon_if #(
+    parameter MON_W = 64
+)(
+    input logic clk, rst_n
+);
+
+  // Monitor -> Coverage
+  logic             sample_valid;
+  logic [MON_W-1:0] sample_data;
+
+  // Coverage -> Monitor
+  logic sample_en;   // tells monitor to snapshot
+
+endinterface
 ```
