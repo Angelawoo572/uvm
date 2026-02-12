@@ -107,6 +107,9 @@ endinterface
 ```
 
 #### Sequence FSM <-> Driver
+**TODO**:
+- [ ] Are there passive wires for sequence to observe from driver? This is protocol-aware though
+
 **NOTE**: Include how driver could signal if seq_item should be skipped
 ```systemverilog
 interface seq_drv_if #(
@@ -132,6 +135,9 @@ interface seq_drv_if #(
 
 endinterface
 ```
+
+**TODO**: 
+- [ ] Are there passive wires for coverage to observe?
 
 #### Coverage FSM <-> Monitor
 ```systemverilog
