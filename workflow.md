@@ -38,6 +38,11 @@ There are 5 handshake protocols/interfaces required:
 4. Sequence FSM <-> Driver
 5. Coverage FSM <-> Monitor
 
+Across all interfaces:
+- `ready` / `valid` for data transfter
+- `start` / `done` for control
+- `token` / `grant` for arbitration
+
 **TODO**:
 - [ ] Define handshake within the sequence FSM too? (between sequence <-> seq_item?)
 
@@ -59,3 +64,5 @@ There are 5 handshake protocols/interfaces required:
 ```
 
 #### Coverage FSM <-> Monitor
+```systemverilog
+```
