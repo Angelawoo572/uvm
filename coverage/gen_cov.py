@@ -1,7 +1,13 @@
 import json
 import argparse
 import sys
-import math
+
+# Supported features
+# - fixed bins, illegal bins
+
+# TODO features
+# - ignored bins
+# 
 
 class VerilogModule:
     def __init__(self, name):
@@ -72,7 +78,7 @@ class VerilogModule:
         lines.append("endmodule\n")
         return "\n".join(lines)
 
-def generate_coverpoint(cp_data, counter_width=32):
+def generate_coverpoint(cp_data, counter_width=4):
     ref = cp_data['reference']
     mod = VerilogModule(ref)
     
@@ -85,7 +91,8 @@ def generate_coverpoint(cp_data, counter_width=32):
         mod.add_input(sig['reference'], sig['width'])
 
     # Bins & Logic
-    bins = cp_data['bins']
+    bins = cp_data.get('bins', [])
+    illegal_bins = cp_data.get('illegal_bins', [])
     num_bins = len(bins)
     
     # Internal signals
@@ -101,11 +108,14 @@ def generate_coverpoint(cp_data, counter_width=32):
         mod.add_output(out_name, counter_width)
         mod.add_line(f"assign {out_name} = ctr_r[{idx}];")
 
+    mod.add_output("illegalError", 1)
+
     # Combinational Logic (Bin Mapping)
     mod.add_line("")
     mod.add_line("always_comb begin")
-    mod.add_line("    // Default: Hold value")
-    mod.add_line(f"    ctr_n = ctr_r;")
+    mod.add_line("    // Default: Hold value, no error")
+    mod.add_line("    ctr_n = ctr_r;")
+    mod.add_line("    illegalError = 0;")
     mod.add_line("")
     mod.add_line(f"    case ({cp_data['expression']})")
     
@@ -114,6 +124,11 @@ def generate_coverpoint(cp_data, counter_width=32):
         states_str = ", ".join(map(str, states))
         mod.add_line(f"        {states_str}: ctr_n[{idx}] = ctr_r[{idx}] + 1;")
     
+    for b in illegal_bins:
+        states = b['states']
+        states_str = ", ".join(map(str, states))
+        mod.add_line(f"        {states_str}: illegalError = 1;")
+
     mod.add_line("        default: ; // No bin hit")
     mod.add_line("    endcase")
     mod.add_line("end")
@@ -158,7 +173,7 @@ def generate_covergroup(cg_data):
     return mod
 
 def generate_coverage_model(model_data):
-    ref = model_data['reference']
+    ref = model_data.get('reference')
     mod = VerilogModule(ref)
     
     # Standard Inputs
@@ -196,7 +211,7 @@ def collect_modules(mod, module_list):
 def main():
     parser = argparse.ArgumentParser(description="Convert Coverage JSON to Synthesizable SystemVerilog")
     parser.add_argument("input_json", help="Path to the input JSON file")
-    parser.add_argument("-o", "--output", help="Path to output SV file", default="coverage_model.sv")
+    parser.add_argument("output_sv", help="Path to output SV file", default="coverage_model.sv")
     args = parser.parse_args()
 
     try:
