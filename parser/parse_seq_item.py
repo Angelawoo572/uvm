@@ -1,132 +1,338 @@
 import pyslang
-from typing import Union, List, Dict, Any
+import json
+from typing import Union, List, Dict, Any, Optional
+from dataclasses import dataclass, field
+import os
+import argparse
+import re
 
-# The file is first parsed into a syntax tree, then added to a Compilation, where slang resolves classes, 
-# variables, types, and constraints into real symbols. By walking the compilation with a visitor, 
-# the script observes when a class is encountered and then records every variable (VariableSymbol) and 
-# constraint block (ConstraintBlockSymbol) the compiler associates with that class. This lets you reliably 
-# extract fields, their types, and whether they are rand, as well as the names of constraint blocks, even if 
-# UVM macros are undefined.
+# High-Level Overview:
+# This script analyzes a SystemVerilog (.sv / .svh) file containing UVM sequence items.
+# The file is first parsed into a syntax tree using pyslang, then added to a Compilation
+# object where slang resolves classes, variables, and types into semantic symbols.
+# By walking the compilation with a visitor, the script detects when a class is
+# encountered and records each variable (VariableSymbol) associated with that class,
+# including its type and whether it is declared as rand.
+#
+# Constraints are extracted separately using the CST JSON representation of the syntax
+# tree. The script locates ConstraintDeclaration nodes and reconstructs clean,
+# human-readable constraint text directly from the JSON token structure. This avoids
+# relying on semantic resolution of constraint bodies, which may fail when UVM macros
+# or base classes are undefined.
+#
+# The final result is a structured summary of each class, including its fields and
+# fully reconstructed constraint blocks.
+#
 
-class AllClassesExtractor:
-    """Collect fields and constraint blocks for all classes in the file,
-    using a simple 'current class' tracking approach."""
 
+# TO RUN:
+#   python parse_seq_item.py <file.svh>
+
+# -----------------------------
+# Data model
+# -----------------------------
+@dataclass
+class FieldInfo:
+    name: str
+    sv_type: str
+    rand_mode: str
+
+
+@dataclass
+class ConstraintInfo:
+    name: str
+    text: str
+
+
+@dataclass
+class ClassInfo:
+    name: str
+    fields: List[FieldInfo] = field(default_factory=list)
+    constraints: List[ConstraintInfo] = field(default_factory=list)
+
+
+# -----------------------------
+# Semantic extraction for fields
+# -----------------------------
+class ClassCollector:
+    """
+    Collect fields using Compilation semantic symbols.
+    Keeps your simple 'current_class' heuristic.
+    """
     def __init__(self):
-        # classes[name] = {"fields": [...], "constraints": [...]}
-        self.classes: Dict[str, Dict[str, List[Any]]] = {}
-        self.current_class: str | None = None
+        self._classes: Dict[str, ClassInfo] = {}
+        self._current_class: Optional[str] = None
 
-    def _ensure_class(self, class_name: str):
-        if class_name not in self.classes:
-            self.classes[class_name] = {
-                "fields": [],
-                "constraints": [],
-            }
+    def _ensure(self, class_name: str) -> ClassInfo:
+        if class_name not in self._classes:
+            self._classes[class_name] = ClassInfo(name=class_name)
+        return self._classes[class_name]
 
     def __call__(self, obj: Union[pyslang.Token, pyslang.SyntaxNode]):
-        # When we see a class, mark it as the "current" one
         if isinstance(obj, pyslang.ClassType):
-            self.current_class = obj.name
-            self._ensure_class(obj.name)
+            self._current_class = obj.name
+            self._ensure(obj.name)
+            return
 
-        # While we're "in" a class, collect all VariableSymbols we encounter
-        if self.current_class is not None and isinstance(obj, pyslang.VariableSymbol):
+        if self._current_class is None:
+            return
+
+        if isinstance(obj, pyslang.VariableSymbol):
             rand_mode = getattr(obj, "randMode", None)
             rand_name = rand_mode.name if rand_mode is not None else "None"
+            ci = self._ensure(self._current_class)
+            ci.fields.append(FieldInfo(name=obj.name,
+                                       sv_type=str(obj.type),
+                                       rand_mode=rand_name))
 
-            self.classes[self.current_class]["fields"].append(
-                {
-                    "name": obj.name,
-                    "type": str(obj.type),
-                    "rand_mode": rand_name,
-                }
-            )
-
-        # While we're "in" a class, collect all constraint blocks
-        if self.current_class is not None and isinstance(obj, pyslang.ConstraintBlockSymbol):
-            self.classes[self.current_class]["constraints"].append(obj)
+    def results(self) -> List[ClassInfo]:
+        return [self._classes[k] for k in sorted(self._classes.keys())]
 
 
-def parse_file(filepath: str) -> Dict[str, Dict[str, List[Any]]]:
-    """Parse the file and return a dict of class_name -> {fields, constraints}."""
-
+# -----------------------------
+# Compilation
+# -----------------------------
+def compile_file(filepath: str) -> pyslang.Compilation:
     tree = pyslang.SyntaxTree.fromFile(filepath)
-    compilation = pyslang.Compilation()
-    compilation.addSyntaxTree(tree)
+    comp = pyslang.Compilation()
+    comp.addSyntaxTree(tree)
+    return comp
 
-    # Show diagnostics but don't fail on them
-    diags = compilation.getAllDiagnostics()
-    if diags:
-        print("Diagnostics from slang:")
-        for d in diags:
-            print("  ", d)
-        print("  (Ignoring diagnostics and continuing)\n")
 
-    extractor = AllClassesExtractor()
-    compilation.getRoot().visit(extractor)
-    classes = extractor.classes
+def collect_classes(filepath: str, show_diagnostics: bool = True) -> List[ClassInfo]:
+    comp = compile_file(filepath)
 
-    # Convert ConstraintBlockSymbols to simple info (name only for now)
-    for cname, info in classes.items():
-        blocks = info["constraints"]
-        info["constraints"] = [{"name": b.name} for b in blocks]
+    if show_diagnostics:
+        diags = comp.getAllDiagnostics()
+        if diags:
+            print("Diagnostics from slang:")
+            for d in diags:
+                print(" ", d)
+            print(" (Ignoring diagnostics and continuing)\n")
 
-    return classes
+    collector = ClassCollector()
+    comp.getRoot().visit(collector)
+    return collector.results()
+
+
+# -----------------------------
+# JSON-only constraint extraction
+# -----------------------------
+def _extract_identifier_text(name_node: Any) -> Optional[str]:
+    if not isinstance(name_node, dict):
+        return None
+    ident = name_node.get("identifier")
+    if isinstance(ident, dict):
+        txt = ident.get("text")
+        if isinstance(txt, str):
+            return txt
+    val = name_node.get("value")
+    if isinstance(val, str):
+        return val
+    return None
+
+
+def _collect_tokens(node: Any, skip_keyword_trivia: bool = False) -> str:
+    """
+    Reconstruct token text in JSON order.
+    If skip_keyword_trivia=True, skip trivia on ConstraintKeyword token.
+    """
+    out: List[str] = []
+
+    def walk(x: Any):
+        if isinstance(x, dict):
+            if "text" in x and isinstance(x["text"], str):
+                kind = x.get("kind")
+
+                # Skip banner comments attached to 'constraint' keyword
+                if skip_keyword_trivia and kind == "ConstraintKeyword":
+                    out.append(x["text"])
+                else:
+                    trivia = x.get("trivia")
+                    if isinstance(trivia, list):
+                        for t in trivia:
+                            if isinstance(t, dict) and isinstance(t.get("text"), str):
+                                out.append(t["text"])
+                    out.append(x["text"])
+
+            for v in x.values():
+                walk(v)
+
+        elif isinstance(x, list):
+            for i in x:
+                walk(i)
+
+    walk(node)
+    return "".join(out)
+
+
+def _normalize_constraint_text(s: str) -> str:
+    # Normalize line endings
+    s = s.replace("\r\n", "\n")
+
+    # Remove full-line // comments (banner lines)
+    s = re.sub(r"(?m)^\s*//.*\n?", "", s)
+
+    # Collapse ALL whitespace (including newlines) into single spaces
+    s = re.sub(r"\s+", " ", s).strip()
+
+    # No space right before ')' or ']' or '}'
+    s = re.sub(r"\s+([\)\]\}])", r"\1", s)
+
+    # No space before semicolons / commas
+    s = re.sub(r"\s+([;,])", r"\1", s)
+
+    # Make brace spacing consistent: "name {" not "name  {"
+    s = re.sub(r"\s+\{", " {", s)
+
+    # Fix double equals spacing: "==" with single spaces around
+    s = re.sub(r"\s*==\s*", " == ", s)
+
+    # Collapse again in case punctuation fixes created doubles
+    s = re.sub(r"\s+", " ", s).strip()
+
+    return s
+
+
+
+def extract_constraints_from_json(filepath: str) -> List[ConstraintInfo]:
+    tree = pyslang.SyntaxTree.fromFile(filepath)
+    cst = json.loads(tree.to_json())
+
+    constraints: List[ConstraintInfo] = []
+
+    def walk(x: Any):
+        if isinstance(x, dict):
+            if x.get("kind") == "ConstraintDeclaration":
+                cname = _extract_identifier_text(x.get("name")) or "<unknown_constraint>"
+
+                kw = x.get("keyword")
+                nm = x.get("name")
+                blk = x.get("block")
+
+                parts: List[str] = []
+
+                if isinstance(kw, dict) and isinstance(kw.get("text"), str):
+                    parts.append(kw["text"])
+
+                if nm is not None:
+                    parts.append(_collect_tokens(nm))
+
+                if blk is not None:
+                    parts.append(_collect_tokens(blk))
+
+                text = "".join(parts)
+                text = _normalize_constraint_text(text)
+
+                constraints.append(ConstraintInfo(name=cname, text=text))
+
+            for v in x.values():
+                walk(v)
+
+        elif isinstance(x, list):
+            for i in x:
+                walk(i)
+
+    walk(cst)
+    return constraints
+
+
+# -----------------------------
+# Formatting helpers
+# -----------------------------
+def dedupe_fields(fields: List[FieldInfo]) -> List[FieldInfo]:
+    seen = set()
+    out: List[FieldInfo] = []
+    for f in fields:
+        key = (f.name, f.sv_type, f.rand_mode)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(f)
+    return out
+
+
+def dedupe_constraints(constraints: List[ConstraintInfo]) -> List[ConstraintInfo]:
+    seen = set()
+    out: List[ConstraintInfo] = []
+    for c in constraints:
+        key = (c.name, c.text)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(c)
+    return out
+
+
+def format_class_info(ci: ClassInfo) -> str:
+    fields = dedupe_fields(ci.fields)
+    constraints = dedupe_constraints(ci.constraints)
+
+    lines: List[str] = []
+    lines.append(f"Class: {ci.name}")
+    lines.append("")
+    lines.append("Fields:")
+
+    if fields:
+        for f in fields:
+            lines.append(f"  {f.name:12s} : {f.sv_type:20s} rand_mode={f.rand_mode}")
+    else:
+        lines.append("  <no fields found>")
+
+    lines.append("")
+    lines.append("Constraints:")
+
+    if constraints:
+        for c in constraints:
+            lines.append(f"  {c.name}")
+            body = c.text.replace("\n", "\n    ")
+            lines.append(f"    {body}")
+    else:
+        lines.append("  <no constraints found>")
+
+    lines.append("")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def write_summary(classes: List[ClassInfo], out_file: str) -> None:
+    with open(out_file, "w", encoding="utf-8") as f:
+        for ci in classes:
+            f.write(format_class_info(ci))
+
+
+# -----------------------------
+# CLI
+# -----------------------------
+def default_out_path(input_file: str) -> str:
+    base = os.path.splitext(os.path.basename(input_file))[0]
+    return f"{base}_summary.txt"
 
 
 def main():
-    import argparse
-    import os
-
     parser = argparse.ArgumentParser()
-    parser.add_argument("file", help="SystemVerilog file")
-    parser.add_argument(
-        "--out",
-        default=None,
-        help="Output text file (default: <input>_summary.txt)",
-    )
+    parser.add_argument("file", help="SystemVerilog file (.sv/.svh)")
+    parser.add_argument("--out", default=None, help="Output text file path")
+    parser.add_argument("--no-diags", action="store_true", help="Do not print diagnostics")
     args = parser.parse_args()
 
-    classes = parse_file(args.file)
+    classes = collect_classes(args.file, show_diagnostics=not args.no_diags)
 
     if not classes:
         print("No classes found in file.")
         return
 
-    # Decide output filename
-    if args.out:
-        out_file = args.out
+    constraints = extract_constraints_from_json(args.file)
+
+    # Attach constraints to classes (usually 1 per file)
+    if len(classes) == 1:
+        classes[0].constraints.extend(constraints)
     else:
-        base = os.path.splitext(os.path.basename(args.file))[0]
-        out_file = f"{base}_summary.txt"
+        for ci in classes:
+            ci.constraints.extend(constraints)
 
-    with open(out_file, "w", encoding="utf-8") as f:
-        for class_name in sorted(classes.keys()):
-            info = classes[class_name]
-            fields = info["fields"]
-            constraints = info["constraints"]
-
-            f.write(f"Class: {class_name}\n\n")
-
-            f.write("Fields:\n")
-            if fields:
-                for fld in fields:
-                    f.write(
-                        f"  {fld['name']:12s} : {fld['type']:20s}  "
-                        f"rand_mode={fld['rand_mode']}\n"
-                    )
-            else:
-                f.write("  <no fields found>\n")
-
-            f.write("\nConstraints:\n")
-            if constraints:
-                for block in constraints:
-                    f.write(f"  block {block['name']}\n")
-            else:
-                f.write("  <no constraints found>\n")
-
-
+    out_file = args.out if args.out else default_out_path(args.file)
+    write_summary(classes, out_file)
     print(f"Wrote summary to {out_file}")
 
 
