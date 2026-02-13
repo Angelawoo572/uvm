@@ -6,8 +6,12 @@ System generates **3 RTL blocks** (Sequence, Coverage and Stimuli FSMs)  + an **
 ![System-overview](./images/system-overview.png)
 
 **TODO**: 
-- [ ] Will driver and monitor be somewhat static? (i.e. will they change much between designs?)
-- [ ] Will Coverage decide when to stop? Or orchestrator? Or by finishing all sequences?
+- [ ] Will driver and monitor be somewhat static? (i.e. will they change much between designs?) Answer: depending on protocol
+- [ ] Will Coverage decide when to stop? Or orchestrator? Or by finishing all sequences? Answer: no (show usage, explort all bins/hits to user)
+- Transaction: the lowest level seq_item (research how that looks like? is it signals-ish?)
+
+**Things to look into**:
+- [ ] How do we enumerate PRNG bank? how will parser look? how will stimuli FSM work?
 
 ## Execution overview
 There will be 2 independent workflows:
@@ -109,6 +113,7 @@ endinterface
 #### Sequence FSM <-> Driver
 **TODO**:
 - [ ] Are there passive wires for sequence to observe from driver? This is protocol-aware though
+Answer: there is mecahnism called driver request and response, research how that looks like
 
 **NOTE**: Include how driver could signal if seq_item should be skipped
 ```systemverilog
