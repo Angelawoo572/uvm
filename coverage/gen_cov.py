@@ -78,6 +78,10 @@ class VerilogModule:
         lines.append("endmodule\n")
         return "\n".join(lines)
 
+#def generate_cross(cg_data, counter_width=4):
+
+ #   return
+
 def generate_coverpoint(cp_data, counter_width=4):
     ref = cp_data['reference']
     mod = VerilogModule(ref)
@@ -159,8 +163,12 @@ def generate_covergroup(cg_data):
     for cp_data in cg_data['coverpoints']:
         cp_mod = generate_coverpoint(cp_data)
         instance_name = f"{cp_data['reference']}_inst"
-        mod.sub_modules.append((cp_mod, instance_name))
-        
+
+        # mod.sub_modules.append((cp_mod, instance_name))
+        # append body lines to cg body
+        for line in cp_mod.body:
+            mod.add_line(line)
+
         # bubble up inputs (uniquify)
         for name, width in cp_mod.inputs.items():
             if name not in mod.inputs:
@@ -229,7 +237,7 @@ def main():
     collect_modules(top_mod, all_modules)
 
     # Write to file
-    with open(args.output, 'w') as f:
+    with open(args.output_sv, 'w') as f:
         f.write("// Auto-generated SystemVerilog Coverage Model\n")
         f.write(f"// Generated from: {args.input_json}\n\n")
         
@@ -237,7 +245,7 @@ def main():
             f.write(mod.generate_sv())
             f.write("\n")
             
-    print(f"Successfully generated {args.output}")
+    print(f"Successfully generated {args.output_sv}")
 
 if __name__ == "__main__":
     main()
