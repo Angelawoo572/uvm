@@ -19,9 +19,19 @@
       "properties": {
         "reference": { "type": "string" },
         "sample_event": { "type": "string" },
-        "coverpoints": { "type": "array", "items": { "$ref": "#/$defs/coverpoint" } }
+        "coverpoints": { "type": "array", "items": { "$ref": "#/$defs/coverpoint" } },
+        "crosses": { "type": "array", "items": { "$ref": "#/$defs/cross" } }
       },
       "required": ["reference", "sample_event", "coverpoints"]
+    },
+
+    "cross": {
+      "type": "object",
+      "properties": {
+        "reference": { "type": "string" },
+        "coverpoints": { "type": "array", "items": { "type": "string"} }
+      },
+      "required": ["reference", "coverpoints"]
     },
 
     "coverpoint": {
@@ -30,7 +40,8 @@
         "reference": { "type": "string" },
         "expression": { "type": "string" },
         "signals": { "type": "array", "items": { "$ref": "#/$defs/signal" } },
-        "bins": { "type": "array", "items": { "$ref": "#/$defs/bin" } }
+        "bins": { "type": "array", "items": { "$ref": "#/$defs/bin" } },
+        "illegal_bins": { "type": "array", "items": { "$ref": "#/$defs/bin" } }
       },
       "required": ["reference", "signals", "width", "bins"]
     },
