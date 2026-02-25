@@ -12,6 +12,7 @@ System generates **3 RTL blocks** (Sequence, Coverage and Stimuli FSMs)  + an **
 
 **Things to look into**:
 - [ ] How do we enumerate PRNG bank? how will parser look? how will stimuli FSM work?
+Answer: Bounded LFSR for everything (pass in parameters by Seq FSM), have 1-to-1 additional constraint solvers, if required.
 
 ## Execution overview
 There will be 2 independent workflows:
@@ -74,6 +75,14 @@ endinterface
 ```
 
 #### Sequence FSM <-> Stimuli FSM
+- Seed
+- lower, upper bound
+- one random data at a time?
+- req_id (if 0, get value from bounded lfsr, else, index into specific fsm after bounded lfsr)
+
+Refer to:
+![Seq-Stimuli Interaction](./images/seq-stimuli.png)
+
 ```systemverilog
 interface seq_stim_if #(
     parameter DATA_W = 32
@@ -81,14 +90,17 @@ interface seq_stim_if #(
     input  logic clk, rst_n
 );
     // Request 
-    logic [7:0] req_id;  // some database of constraints
+    logic [7:0] seed;
+    logic [31:0] lower_bound, upper_bound;
+
+    logic [7:0] constraint_id;  // some database of constraints
     logic       req_valid;
     logic       req_ready;
 
     // Response
     logic              rsp_valid;
     logic              rsp_ready;
-    logic [DATA_W-1:0] rsp_data;
+    logic [DATA_W-1:0] solved_data;
 
 endinterface
 ```
