@@ -9,7 +9,8 @@
 **example:**
 For $addr < 5, addr > 12$ in `bit [3:0]`
 $$addr \in [0, 4] \cup [13, 15]$$
-Use Bounded LFSR from `0` to `8`
+$$|addr| = 8$$
+Use Bounded LFSR from `0` to `7`
 ``` 
 assign addr = lfsr_out ? lfsr_out <= 4 : lfsr_out + 8;
 ```
