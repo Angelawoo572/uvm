@@ -76,15 +76,15 @@ def parse_and_generate_sv(constraint_line, lfsr_width=32, scaled_width=64):
     # Variable declarations
     # rtl.append(f"logic [{lfsr_width-1}:0] product_high;")
     rtl.append(f"module dist_example_{var_name}(input logic [{lfsr_width-1}:0] lfsr_in, output logic [31:0] {var_name});")
-    rtl.append(f"logic [{scaled_width-1}:0] scaled_rand;")
+    rtl.append(f"logic [{lfsr_width-1}:0] scaled_rand;")
     # rtl.append(f"logic [31:0] {var_name};") 
     rtl.append("")
     
-    # Scaling Logic
+    # Mod Logic
     # We use the standard scaling: (LFSR * TOTAL_WEIGHT) >> LFSR_WIDTH
     # This maps the 0..2^N-1 range to 0..TOTAL_WEIGHT-1
-    rtl.append(f"// Scaling: Map LFSR to [0 : {total_weight-1}]")
-    rtl.append(f"assign scaled_rand = (lfsr_in * {total_weight}) >> {lfsr_width};")
+    rtl.append(f"// Mod: Map LFSR to [0 : {total_weight-1}]")
+    rtl.append(f"assign scaled_rand = lfsr_in % {total_weight};")
     # rtl.append(f"assign scaled_rand = product_high;")
     rtl.append("")
     
@@ -132,7 +132,7 @@ input_str = "slave_err dist {1 := 20, 0 := 80};"
 generated_rtl = parse_and_generate_sv(input_str, lfsr_width=32)
 
 # Define output filename
-output_filename = "dist_example.sv"
+output_filename = "dist_example_mod.sv"
 
 # Write to file
 write_to_file(output_filename, generated_rtl)
