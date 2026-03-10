@@ -18,6 +18,7 @@ Answer: Bounded LFSR for everything (pass in parameters by Seq FSM), have 1-to-1
 There will be 2 independent workflows:
 1. Sequence -> Solver -> Driver interaction
 ```bash
+Step 0: Load seed into Solver FSM
 Step 1: Orchestrator grants token to Seq FSM 1
 Step 2: Seq FSM 1 executes this loop for its seq_items:
         - Determine next seq_item to execute based on conditional logic
@@ -102,6 +103,7 @@ interface seq_stim_if #(
         // Request
         input seed, lower_bound, upper_bound,
         input constraint_id,
+        input req_seed_load,
         output req_ready,
         input req_valid,
 
@@ -117,6 +119,7 @@ interface seq_stim_if #(
         // Request
         output seed, lower_bound, upper_bound,
         output constraint_id,
+        output req_seed_load
         input req_ready,
         output req_valid,
 
