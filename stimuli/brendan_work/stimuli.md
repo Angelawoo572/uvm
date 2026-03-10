@@ -26,3 +26,21 @@ assign addr = lfsr_out ? lfsr_out <= 4 : lfsr_out + 8;
 5. bit-wise constraint (e.g. parity)
 - Bounded LFSR
 - Mask `bit [1:0]` depending on constraint
+
+## Regex matching of constraints
+1. Assign
+```
+# Regex to capture: variable, [msb:lsb], and the value
+# Example: constraint align_32 {addr[1:0] == 0;}
+pattern = r"constraint\s+\w+\s*\{(\w+)(?:\[(\d+):(\d+)\])?\s*==\s*([^;]+);?\s*\}"
+match = re.search(pattern, constraint_line)
+```
+
+2. dist
+```
+# 1. Clean up the input string
+# Remove comments (// ...)
+line = re.sub(r'//.*', '', constraint_line)
+# Extract variable name and the content inside {}
+match = re.search(r'(\w+)\s+dist\s*\{(.*)\}', line)
+```
