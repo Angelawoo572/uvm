@@ -27,11 +27,13 @@ module stimuli_fsm (
     // TODO: implement constraint solvers here
 
     // Mux constraint solvers to solved_data using constraint_id
+    logic constraint_id_enable;
     logic [$clog2(NUM_CONSTRAINTS)-1:0] registered_constraint_id;
     always_ff @(posedge stim_if.clk) begin
-        registered_constraint_id <= stim_if.constraint_id;
-        stim_if.solved_data <= solver_output[registered_constraint_id];
+        if (constraint_id_enable)
+            registered_constraint_id <= stim_if.constraint_id;
     end
+    assign stim_if.solved_data = solver_output[registered_constraint_id];
 
     /* FSM
        Status points: lfsr_valid
@@ -69,6 +71,7 @@ module stimuli_fsm (
                 stim_if.req_ready = 1'b1;
                 if (stim_if.req_valid) begin
                     lfsr_enable = 1'b1;
+                    constraint_id_enable = 1'b1;
                     nextState = SOLVED;
                 end
                 else
