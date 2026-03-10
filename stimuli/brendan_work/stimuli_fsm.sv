@@ -1,5 +1,5 @@
 /* @Brief Datapath/FSM for constraint solver. 
-Solves constraints in one clock cycle. Outputs are registered*/
+Solves constraints in two clock cycles. Outputs are registered*/
 module stimuli_fsm (
     seq_stim_if.STIM stim_if
 );
@@ -35,8 +35,8 @@ module stimuli_fsm (
 
     /* FSM
        Status points: lfsr_valid
-       Control points: lfsr_seed_load, lfsr_enable
-       Inputs: stim_if.req_valid, stim_if.rsp_ready
+       Control points: lfsr_enable
+       Inputs: stim_if.req_valid, stim_if.rsp_ready, stim_if.req_seed_load
        Outputs: stim_if.req_ready, stim_if.rsp_valid */
     typedef enum logic [1:0] 
         {WAIT, SEED_LOAD, SOLVED} state_t;
@@ -50,40 +50,49 @@ module stimuli_fsm (
     end
 
     always_comb begin
-        lfsr_seed_load = 1'b0;
-        lfsr_enable = 1'b0;
-        stim_if.req_ready = 1'b0;
-        stim_if.rsp_valid = 1'b0;
+        lfsr_enable = 0;
+        lfsr_seed_load = 0;
+        stim_if.req_ready = 0;
+        stim_if.rsp_valid = 0;
 
         case (state)
             WAIT: begin
-                if (stim_if.req_valid) begin
+                if (stim_if.req_seed_load) begin
                     lfsr_seed_load = 1'b1;
                     nextState = SEED_LOAD;
                 end
-                else begin
-                    stim_if.req_ready = 1'b1;
-                    nextState = WAIT;
-                end
+                else    
+                    nextState = SEED_LOAD
             end
 
             SEED_LOAD: begin
-                lfsr_enable = 1'b1;
-                nextState = SOLVED;
-            end
-
-            SOLVED: begin
-                if (lfsr_valid) begin
-                    stim_if.rsp_valid = 1'b1;
-                    if (stim_if.rsp_ready) 
-                        nextState = WAIT;
-                    else
-                        nextState = SOLVED;
-                end
-                else begin
+                stim_if.req_ready = 1'b1;
+                if (stim_if.req_valid) begin
                     lfsr_enable = 1'b1;
                     nextState = SOLVED;
                 end
+                else
+                    nextState = SEED_LOAD;
+            end
+
+            SOLVED: begin
+                if (stim_if.rsp_ready) begin
+                    if (lfsr_valid) begin
+                        stim_if.rsp_valid = 1'b1;
+                        nextState = SEED_LOAD;
+                    end
+                    else begin
+                        lfsr_enable = 1'b1;
+                        nextState = SOLVED;
+                    end
+                end
+                else begin
+                    if (lfsr_valid) 
+                        nextState = SOLVED;
+                    else begin
+                        lfsr_enable = 1'b1;
+                        nextState = SOLVED;
+                    end
             end
         endcase
     end
