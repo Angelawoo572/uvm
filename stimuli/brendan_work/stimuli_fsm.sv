@@ -9,7 +9,7 @@ module stimuli_fsm (
     // Bounded LFSR
     logic lfsr_enable, lfsr_seed_load, lfsr_valid;
     logic [DATA_W-1:0] lfsr_output;
-    bounded_LFSR #(DATA_W) lfsr (
+    bounded_LFSR #(.W(DATA_W)) lfsr (
         .clk(stim_if.clk),
         .rst_n(stim_if.rst_n),
         .enable(lfsr_enable),
@@ -25,6 +25,9 @@ module stimuli_fsm (
     // Connect lfsr_output to constraint solvers
     logic [DATA_W-1:0] solver_output [NUM_CONSTRAINTS];
     // TODO: implement constraint solvers here
+    // e.g. constraint_id = 0: odd, 1: even
+    assign solver_output[0] = {lfsr_output[DATA_W-1:1], 1'b1};
+    assign solver_output[1] = {lfsr_output[DATA_W-1:1], 1'b0};
 
     // Mux constraint solvers to solved_data using constraint_id
     logic constraint_id_enable;
@@ -64,7 +67,7 @@ module stimuli_fsm (
                     nextState = SEED_LOAD;
                 end
                 else    
-                    nextState = SEED_LOAD
+                    nextState = SEED_LOAD;
             end
 
             SEED_LOAD: begin
@@ -96,6 +99,7 @@ module stimuli_fsm (
                         lfsr_enable = 1'b1;
                         nextState = SOLVED;
                     end
+                end
             end
         endcase
     end
