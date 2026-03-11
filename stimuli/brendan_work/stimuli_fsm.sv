@@ -29,12 +29,17 @@ module stimuli_fsm (
     assign solver_output[0] = {lfsr_output[DATA_W-1:1], 1'b1};
     assign solver_output[1] = {lfsr_output[DATA_W-1:1], 1'b0};
 
-    // Mux constraint solvers to solved_data using constraint_id
-    logic constraint_id_enable;
+    // Register seed and bounds when request is valid
+    logic lfsr_req_load;
     logic [$clog2(NUM_CONSTRAINTS)-1:0] registered_constraint_id;
+    logic [DATA_W-1:0] registered_upper_bound, registered_lower_bound;
+
     always_ff @(posedge stim_if.clk) begin
-        if (constraint_id_enable)
+        if (lfsr_req_load) begin
             registered_constraint_id <= stim_if.constraint_id;
+            registered_upper_bound <= stim_if.upper_bound;
+            registered_lower_bound <= stim_if.lower_bound;
+        end
     end
     assign stim_if.solved_data = solver_output[registered_constraint_id];
 
@@ -57,6 +62,7 @@ module stimuli_fsm (
     always_comb begin
         lfsr_enable = 0;
         lfsr_seed_load = 0;
+        lfsr_req_load = 0;
         stim_if.req_ready = 0;
         stim_if.rsp_valid = 0;
 
@@ -67,14 +73,14 @@ module stimuli_fsm (
                     nextState = SEED_LOAD;
                 end
                 else    
-                    nextState = SEED_LOAD;
+                    nextState = WAIT;
             end
 
             SEED_LOAD: begin
                 stim_if.req_ready = 1'b1;
                 if (stim_if.req_valid) begin
                     lfsr_enable = 1'b1;
-                    constraint_id_enable = 1'b1;
+                    lfsr_req_load = 1'b1;
                     nextState = SOLVED;
                 end
                 else
