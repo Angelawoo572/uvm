@@ -31,10 +31,10 @@ module stimuli_fsm (
     // Constraint solvers =================================
     logic [DATA_W-1:0] solver_output [NUM_CONSTRAINTS];
 
-    // TODO: implement constraint solvers here
-    // e.g. constraint_id = 0: odd, 1: even
-    assign solver_output[0] = {lfsr_output[DATA_W-1:1], 1'b1};
-    assign solver_output[1] = {lfsr_output[DATA_W-1:1], 1'b0};
+    constraint_solver #(.DATA_W(DATA_W), .NUM_CONSTRAINTS(NUM_CONSTRAINTS)) solver (
+        .lfsr_output  (lfsr_output),
+        .solver_output(solver_output)
+    );
 
     // Register seed and bounds when request is valid ================
     logic lfsr_req_load;
@@ -95,7 +95,7 @@ module stimuli_fsm (
 
             SEED_LOAD: begin
                 stim_if.req_ready = 1'b1;
-                
+
                 if (stim_if.req_valid) begin
                     lfsr_enable = 1'b1;
                     lfsr_req_load = 1'b1;

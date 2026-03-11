@@ -89,6 +89,7 @@ interface seq_stim_if #(
     logic [DATA_W-1:0] seed;
     logic [DATA_W-1:0] lower_bound, upper_bound;
     logic [$clog2(NUM_CONSTRAINTS)-1:0] constraint_id;  // some database of constraints
+    logic       req_seed_load;
     logic       req_valid;
     logic       req_ready;
 

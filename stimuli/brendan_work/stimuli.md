@@ -1,3 +1,6 @@
+# FSM
+![Stimuli FSM](../../images/stimuli-fsm.png)
+
 **Constraints to solve for:**
 1. inside
 - Bounded LFSR only
