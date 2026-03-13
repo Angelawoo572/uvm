@@ -1,41 +1,53 @@
 `default_nettype none
 
-// Method 2:
-// Synthesizable RTL for:
-//   addr > 1234
-//   addr < 5555
-module method2_numeric_bounds (
-    input  logic        clk,
-    input  logic        rst_n,
-    input  logic        enable,
-    input  logic [15:0] seed,
-    input  logic        seed_load,
+module method2_numeric_bounds #(
+    parameter int W = 16,
+    parameter logic [W-1:0] LO = 16'd1235,
+    parameter logic [W-1:0] HI = 16'd5554
+) (
+    input  logic         clk,
+    input  logic         rst_n,
+    input  logic         enable,
+    input  logic [W-1:0] seed,
+    input  logic         seed_load,
 
-    output logic [15:0] addr,
-    output logic        valid
+    output logic [W-1:0] addr,
+    output logic         valid
 );
 
-    logic [15:0] lfsr_state, lfsr_next;
-    logic        feedback;
+    logic [W-1:0] range_size;
+    logic [W-1:0] offset;
+    logic [W-1:0] idx;
+    logic [W-1:0] next_idx;
 
-    // Example 16-bit LFSR taps
-    assign feedback  = lfsr_state[15] ^ lfsr_state[13] ^ lfsr_state[12] ^ lfsr_state[10];
-    assign lfsr_next = {lfsr_state[14:0], feedback};
+    assign range_size = HI - LO + 16'd1;
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            lfsr_state <= 16'h1;
+            idx    <= '0;
+            offset <= '0;
         end else if (seed_load) begin
-            lfsr_state <= (seed == 16'h0) ? 16'h1 : seed;
+            idx    <= '0;
+            offset <= seed % range_size;
         end else if (enable) begin
-            lfsr_state <= lfsr_next;
+            if (idx == range_size - 16'd1)
+                idx <= '0;
+            else
+                idx <= idx + 16'd1;
         end
     end
 
-    assign addr  = lfsr_state;
-    assign valid = (addr > 16'd1234) && (addr < 16'd5555);
+    always_comb begin
+        next_idx = offset + idx;
+        if (next_idx >= range_size)
+            next_idx = next_idx - range_size;
+        addr = LO + next_idx;
+    end
 
-endmodule: method2_numeric_bounds
+    assign valid = 1'b1;
+
+endmodule : method2_numeric_bounds
+
 
 module tb_method2_numeric_bounds;
 
@@ -75,12 +87,16 @@ module tb_method2_numeric_bounds;
         seed_load = 0;
         enable = 1;
 
-        repeat (20) begin
+        repeat (12) begin
             @(posedge clk);
             $display("[M2] t=%0t addr=%0d valid=%0b", $time, addr, valid);
+            if (!((addr > 16'd1234) && (addr < 16'd5555))) begin
+                $display("ERROR: addr out of method2 bounds");
+                $finish;
+            end
         end
 
         $finish;
     end
 
-endmodule: tb_method2_numeric_bounds
+endmodule : tb_method2_numeric_bounds

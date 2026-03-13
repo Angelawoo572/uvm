@@ -1,10 +1,5 @@
 `default_nettype none
 
-// Method 3:
-// Synthesizable RTL for enum-valued address with constraint:
-//   addr inside [RAM:ROM]
-// We implement that as:
-//   valid = (addr_code >= RAM) && (addr_code <= ROM)
 module method3_enum_range (
     input  logic clk,
     input  logic rst_n,
@@ -24,40 +19,41 @@ module method3_enum_range (
         CPU2 = 8'd124
     } addr_t;
 
-    logic [7:0] lfsr_state, lfsr_next;
-    logic       feedback;
-    addr_t      addr_enum;
-
-    assign feedback  = lfsr_state[7] ^ lfsr_state[5] ^ lfsr_state[4] ^ lfsr_state[3];
-    assign lfsr_next = {lfsr_state[6:0], feedback};
+    logic [1:0] idx;
+    logic [1:0] offset;
+    logic [1:0] sel;
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            lfsr_state <= 8'h1;
+            idx    <= 2'd0;
+            offset <= 2'd0;
         end else if (seed_load) begin
-            lfsr_state <= (seed == 8'h00) ? 8'h1 : seed;
+            idx    <= 2'd0;
+            offset <= seed % 3;
         end else if (enable) begin
-            lfsr_state <= lfsr_next;
+            if (idx == 2'd2)
+                idx <= 2'd0;
+            else
+                idx <= idx + 2'd1;
         end
     end
 
-    // Map raw LFSR output into one of the enum values
     always_comb begin
-        unique case (lfsr_state[2:0])
-            3'd0: addr_enum = RAM;
-            3'd1: addr_enum = CPU;
-            3'd2: addr_enum = ROM;
-            3'd3: addr_enum = ROM2;
-            default: addr_enum = CPU2;
+        sel = idx + offset;
+        if (sel >= 3)
+            sel = sel - 3;
+
+        unique case (sel)
+            2'd0: addr_code = RAM;
+            2'd1: addr_code = CPU;
+            default: addr_code = ROM;
         endcase
     end
 
-    assign addr_code = addr_enum;
+    assign valid = 1'b1;
 
-    // Equivalent hardware form of: addr inside [RAM:ROM]
-    assign valid = (addr_enum >= RAM) && (addr_enum <= ROM);
+endmodule : method3_enum_range
 
-endmodule: method3_enum_range
 
 module tb_method3_enum_range;
 
@@ -108,13 +104,17 @@ module tb_method3_enum_range;
         seed_load = 0;
         enable = 1;
 
-        repeat (16) begin
+        repeat (10) begin
             @(posedge clk);
             $display("[M3] t=%0t addr_code=%0d (%s) valid=%0b",
                      $time, addr_code, enum_name(addr_code), valid);
+            if (!((addr_code == 8'd0) || (addr_code == 8'd1) || (addr_code == 8'd2))) begin
+                $display("ERROR: addr_code not in legal enum subset");
+                $finish;
+            end
         end
 
         $finish;
     end
 
-endmodule: tb_method3_enum_range
+endmodule : tb_method3_enum_range

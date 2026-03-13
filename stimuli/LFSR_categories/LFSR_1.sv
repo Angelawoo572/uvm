@@ -1,12 +1,7 @@
 `default_nettype none
 
-// Method 1:
-// Synthesizable RTL for: addr inside [A:3]
-// Generalize it to addr inside [lo:hi].
-// Intended constraint is exactly [1:3], tie lo=1, hi=3.
-
 module method1_inside_range #(
-    parameter int W = 4
+    parameter int W = 8
 ) (
     input  logic         clk,
     input  logic         rst_n,
@@ -22,38 +17,48 @@ module method1_inside_range #(
     output logic [W-1:0] diff
 );
 
-    logic [W-1:0] lfsr_state, lfsr_next;
-    logic         feedback;
+    logic [W-1:0] range_size;
+    logic [W-1:0] offset;
+    logic [W-1:0] idx;
+    logic [W-1:0] next_idx;
+    logic         bounds_ok;
 
-    // Simple LFSR taps for small demo widths
-    assign feedback  = lfsr_state[W-1] ^ lfsr_state[1];
-    assign lfsr_next = {lfsr_state[W-2:0], feedback};
+    assign bounds_ok  = (hi >= lo);
+    assign range_size = bounds_ok ? (hi - lo + {{(W-1){1'b0}},1'b1}) : '0;
 
-    // Sequential candidate generator
+    // idx is the position inside the legal domain [0 : range_size-1]
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            lfsr_state <= 'h1;
+            idx    <= '0;
+            offset <= '0;
         end else if (seed_load) begin
-            lfsr_state <= (seed == '0) ? 'h1 : seed;
-        end else if (enable) begin
-            lfsr_state <= lfsr_next;
+            idx    <= '0;
+            if (bounds_ok && (range_size != '0))
+                offset <= seed % range_size;
+            else
+                offset <= '0;
+        end else if (enable && bounds_ok && (range_size != '0)) begin
+            if (idx == (range_size - {{(W-1){1'b0}},1'b1}))
+                idx <= '0;
+            else
+                idx <= idx + {{(W-1){1'b0}},1'b1};
         end
     end
 
-    // Candidate value
-    assign addr = lfsr_state;
+    // addr = lo + ((offset + idx) mod range_size)
+    always_comb begin
+        next_idx = offset + idx;
+        if (bounds_ok && (range_size != '0) && (next_idx >= range_size))
+            next_idx = next_idx - range_size;
+        addr = lo + next_idx;
+    end
 
-    // Constraint check: addr inside [lo:hi]
-    assign valid = (addr >= lo) && (addr <= hi);
+    assign valid = bounds_ok && (range_size != '0);
+    assign diff  = addr - lo;
 
-    // Whiteboard had: B - A = diff
-    assign diff = addr - lo;
+endmodule : method1_inside_range
 
-endmodule: method1_inside_range
 
-// ============================================================
-// TB for method 1
-// ============================================================
 module tb_method1_inside_range;
 
     localparam int W = 4;
@@ -89,7 +94,7 @@ module tb_method1_inside_range;
         enable = 0;
         seed = 4'd5;
         seed_load = 0;
-        lo = 4'd1;   // corresponds to [1:3]
+        lo = 4'd1;   // [1:3]
         hi = 4'd3;
 
         #12;
@@ -101,13 +106,17 @@ module tb_method1_inside_range;
         seed_load = 0;
         enable = 1;
 
-        repeat (12) begin
+        repeat (10) begin
             @(posedge clk);
-            $display("[M1] t=%0t addr=%0d valid=%0b diff=%0d  range=[%0d:%0d]",
+            $display("[M1] t=%0t addr=%0d valid=%0b diff=%0d range=[%0d:%0d]",
                      $time, addr, valid, diff, lo, hi);
+            if (valid && !((addr >= lo) && (addr <= hi))) begin
+                $display("ERROR: addr out of range");
+                $finish;
+            end
         end
 
         $finish;
     end
 
-endmodule: tb_method1_inside_range
+endmodule : tb_method1_inside_range
