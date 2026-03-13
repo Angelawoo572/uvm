@@ -1,5 +1,6 @@
 # FSM
 ![Stimuli FSM](../../images/stimuli-fsm.png)
+![Stimuli FSM](../../images/stimuli-fsm-2.png)
 
 **Constraints to solve for:**
 1. inside

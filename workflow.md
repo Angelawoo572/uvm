@@ -120,7 +120,7 @@ interface seq_stim_if #(
         // Request
         output seed, lower_bound, upper_bound,
         output constraint_id,
-        output req_seed_load
+        output req_seed_load,
         input req_ready,
         output req_valid,
 
