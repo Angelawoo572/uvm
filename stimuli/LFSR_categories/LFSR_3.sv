@@ -107,7 +107,6 @@ module stimuli_fsm_method3 (
     end
 endmodule : stimuli_fsm_method3
 
-
 module tb_method3;
     localparam int DATA_W = 32;
     localparam int NUM_CONSTRAINTS = 4;

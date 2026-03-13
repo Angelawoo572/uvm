@@ -89,7 +89,7 @@ module stimuli_fsm_method2 (
     assign stim_if.req_ready   = (state == IDLE);
     assign stim_if.rsp_valid   = (state == RESP);
 
-    always_ff @(posedge stim_if.clk or negedge stim_if.rst_n) begin
+    always_ff @(posedge stim_if.clk, negedge stim_if.rst_n) begin
         if (!stim_if.rst_n) begin
             state    <= IDLE;
             seed_reg <= 'h1;
@@ -137,7 +137,6 @@ module stimuli_fsm_method2 (
         end
     end
 endmodule : stimuli_fsm_method2
-
 
 module tb_method2;
     localparam int DATA_W = 32;
