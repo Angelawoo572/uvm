@@ -1,35 +1,73 @@
 `default_nettype none
 `include "../brendan_work/seq_stim_if.svh"
+/*
+Method 3 now implements a seed-selected permutation 
+over the legal enum subset [RAM:ROM].
+*/
 
 module stimuli_fsm_method3 (
     seq_stim_if.STIM stim_if
 );
-    typedef enum logic [7:0] {
-        RAM  = 8'd0,
-        CPU  = 8'd1,
-        ROM  = 8'd2,
-        ROM2 = 8'd123,
-        CPU2 = 8'd124
+    typedef enum logic [31:0] {
+        RAM  = 32'd0,
+        CPU  = 32'd1,
+        ROM  = 32'd2,
+        ROM2 = 32'd123,
+        CPU2 = 32'd124
     } addr_t;
 
     typedef enum logic [0:0] {IDLE, RESP} state_t;
     state_t state;
 
-    logic [1:0] idx;
-    logic [1:0] offset;
     logic [31:0] seed_reg;
-    logic [1:0] sel;
-    addr_t addr_enum;
+    logic [1:0]  idx;
+    logic [2:0]  perm_sel;
+    addr_t       addr_enum;
 
     always_comb begin
-        sel = idx + offset;
-        if (sel >= 3)
-            sel = sel - 3;
-
-        unique case (sel)
-            2'd0: addr_enum = RAM;
-            2'd1: addr_enum = CPU;
-            default: addr_enum = ROM;
+        unique case (perm_sel)
+            3'd0: begin
+                unique case (idx)
+                    2'd0: addr_enum = RAM;
+                    2'd1: addr_enum = CPU;
+                    default: addr_enum = ROM;
+                endcase
+            end
+            3'd1: begin
+                unique case (idx)
+                    2'd0: addr_enum = RAM;
+                    2'd1: addr_enum = ROM;
+                    default: addr_enum = CPU;
+                endcase
+            end
+            3'd2: begin
+                unique case (idx)
+                    2'd0: addr_enum = CPU;
+                    2'd1: addr_enum = RAM;
+                    default: addr_enum = ROM;
+                endcase
+            end
+            3'd3: begin
+                unique case (idx)
+                    2'd0: addr_enum = CPU;
+                    2'd1: addr_enum = ROM;
+                    default: addr_enum = RAM;
+                endcase
+            end
+            3'd4: begin
+                unique case (idx)
+                    2'd0: addr_enum = ROM;
+                    2'd1: addr_enum = RAM;
+                    default: addr_enum = CPU;
+                endcase
+            end
+            default: begin
+                unique case (idx)
+                    2'd0: addr_enum = ROM;
+                    2'd1: addr_enum = CPU;
+                    default: addr_enum = RAM;
+                endcase
+            end
         endcase
     end
 
@@ -42,16 +80,16 @@ module stimuli_fsm_method3 (
             state    <= IDLE;
             seed_reg <= 32'h1;
             idx      <= 2'd0;
-            offset   <= 2'd0;
+            perm_sel <= 3'd0;
         end else begin
             case (state)
                 IDLE: begin
-                    if (stim_if.req_seed_load) begin
+                    if (stim_if.req_seed_load)
                         seed_reg <= (stim_if.seed == '0) ? 32'h1 : stim_if.seed;
-                    end
+
                     if (stim_if.req_valid) begin
-                        offset <= ((stim_if.seed == '0) ? 32'h1 : stim_if.seed) % 3;
-                        state <= RESP;
+                        perm_sel <= seed_reg % 6;
+                        state    <= RESP;
                     end
                 end
 
@@ -67,7 +105,8 @@ module stimuli_fsm_method3 (
             endcase
         end
     end
-endmodule: stimuli_fsm_method3
+endmodule : stimuli_fsm_method3
+
 
 module tb_method3;
     localparam int DATA_W = 32;
@@ -105,7 +144,7 @@ module tb_method3;
         stim_if.seed          = '0;
         stim_if.lower_bound   = '0;
         stim_if.upper_bound   = '0;
-        stim_if.constraint_id = '0;
+        stim_if.constraint_id = 32'd3;
         repeat (2) @(posedge clk);
         rst_n = 1;
     endtask
@@ -118,7 +157,7 @@ module tb_method3;
         stim_if.req_seed_load <= 1'b0;
     endtask
 
-    task automatic request_enum();
+    task automatic request_enum_once(output logic [31:0] out_val);
         wait(stim_if.req_ready);
         @(posedge clk);
         stim_if.req_valid <= 1'b1;
@@ -129,22 +168,40 @@ module tb_method3;
 
         wait(stim_if.rsp_valid);
         @(posedge clk);
-        $display("[M3] solved_data=%0d (%s)", stim_if.solved_data, enum_name(stim_if.solved_data));
-        if (!((stim_if.solved_data == 32'd0) ||
-              (stim_if.solved_data == 32'd1) ||
-              (stim_if.solved_data == 32'd2))) begin
+        out_val = stim_if.solved_data;
+        $display("[M3] solved_data=%0d (%s)", out_val, enum_name(out_val));
+
+        if (!((out_val == 32'd0) ||
+              (out_val == 32'd1) ||
+              (out_val == 32'd2))) begin
             $display("ERROR: method3 output not in legal enum subset");
             $finish;
         end
+
         stim_if.rsp_ready <= 1'b0;
+    endtask
+
+    task automatic run_seed(input logic [31:0] s);
+        logic [31:0] a, b, c;
+        $display("\n---- seed = %0d ----", s);
+        load_seed(s);
+        request_enum_once(a);
+        request_enum_once(b);
+        request_enum_once(c);
+        $display("Permutation for seed %0d: %s -> %s -> %s",
+                 s, enum_name(a), enum_name(b), enum_name(c));
     endtask
 
     initial begin
         clk = 0;
         reset();
-        load_seed(32'h5A);
 
-        repeat (8) request_enum();
+        run_seed(32'd0);
+        run_seed(32'd1);
+        run_seed(32'd2);
+        run_seed(32'd3);
+        run_seed(32'd4);
+        run_seed(32'd5);
 
         #20;
         $finish;
