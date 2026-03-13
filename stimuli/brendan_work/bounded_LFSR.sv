@@ -21,7 +21,7 @@ module bounded_LFSR #(
     logic         feedback;
 
     // Simple LFSR taps for small demo widths
-    assign feedback  = lfsr_state[W-1] ^ lfsr_state[1]; // TODO: change taps
+    assign feedback = lfsr_state[31] ^ lfsr_state[21] ^ lfsr_state[1] ^ lfsr_state[0];
     assign lfsr_next = {lfsr_state[W-2:0], feedback};
 
     // Sequential candidate generator
