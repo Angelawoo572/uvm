@@ -1,0 +1,1303 @@
+import pyslang
+from pyslang import SyntaxKind, SymbolKind
+
+class HierarchyNode:
+    """
+    Represents a specific INSTANCE in the UVM hierarchy.
+    (e.g., 'env' is an instance of type 'alu_env')
+    """
+    def __init__(self, name, type_name, parent=None):
+        self.name = name            # Instance name (e.g., "agt")
+        self.type_name = type_name  # Class type (e.g., "alu_agent")
+        self.parent = parent
+        self.children = []          # List of HierarchyNode
+        self.configs = []           # Stores uvm_config_db::set calls found here
+
+    def add_child(self, child_node):
+        child_node.parent = self
+        self.children.append(child_node)
+
+    def print_tree(self, level=0):
+        indent = "  " * level
+        print(f"{indent}|- {self.name} : {self.type_name}")
+        for config in self.configs:
+            print(f"{indent}|  [Config Set] {config}")
+        for child in self.children:
+            child.print_tree(level + 1)
+
+
+# --- Phase 1 ---
+class UVMRegistry:
+    def __init__(self):
+        # Classification Buckets
+        self.drivers = {}        # Name -> AST Node
+        self.monitors = {}
+        self.agents = {}
+        self.envs = {}
+        self.tests = {}
+        self.seq_items = {}      # Data packets (Rule 5)
+        
+        # Format: { 'interface_name': { 'signals': [], 'modports': {} } }
+        self.interfaces = {}
+
+    def summary(self):
+        print("--- Classification Summary ---")
+        print(f"Drivers:    {list(self.drivers.keys())}")
+        print(f"Monitors:   {list(self.monitors.keys())}")
+        print(f"Agents:     {list(self.agents.keys())}")
+        print(f"Envs:       {list(self.envs.keys())}")
+        print(f"Tests:      {list(self.tests.keys())}")
+        print(f"Seq Items:  {list(self.seq_items.keys())}")
+        print(f"Interfaces: {list(self.interfaces.keys())}")
+        print("------------------------------")
+
+class Classifier:
+    def __init__(self, tree):
+        self.tree = tree
+        self.registry = UVMRegistry()
+
+    def run(self):
+        # Start visiting from the root
+        self._visit(self.tree.root)
+        return self.registry
+
+    def _visit(self, node):
+        # 1. Check for Class Declarations (Drivers, Monitors, etc.)
+        if node.kind == SyntaxKind.ClassDeclaration:
+            self._classify_class(node)
+        
+        # 2. Check for Interface Declarations (Rule 2 Support)
+        elif node.kind == SyntaxKind.InterfaceDeclaration:
+            self._ingest_interface(node)
+
+        # Recursively visit children
+        if hasattr(node, 'members'):
+            for child in node.members:
+                self._visit(child)
+
+    def _classify_class(self, node):
+        """
+        Inspects the 'extends' clause to determine the class role.
+        """
+        class_name = node.name.value
+        
+        # If there is no extends clause, we ignore it or treat as generic
+        if node.extendsClause is None:
+            return
+
+        # Extract base class name. 
+        # Structure often: ClassDeclaration -> ExtendsClause -> Type (maybe parameterized)
+        base_type = node.extendsClause.baseName
+        
+        # Extended class can be in this format `uvm_driver #(alu_item)`
+        # Helper to dig out the raw identifier from potentially complex types
+        base_name = self._get_type_name(base_type)
+
+        # Apply Classification Logic
+        if "uvm_driver" in base_name:
+            self.registry.drivers[class_name] = node
+        elif "uvm_monitor" in base_name or "monitor" in class_name.lower():
+            self.registry.monitors[class_name] = node
+        elif "uvm_agent" in base_name:
+            self.registry.agents[class_name] = node
+        elif "uvm_env" in base_name:
+            self.registry.envs[class_name] = node
+        elif "uvm_test" in base_name:
+            self.registry.tests[class_name] = node
+        elif "uvm_sequence_item" in base_name:
+            self.registry.seq_items[class_name] = node
+    
+    def _ingest_interface(self, node):
+        """
+        Parses an interface to find signals and modports for later 'Port Explosion'.
+        NOW COMPLETE: Extracting input/output directions from modports.
+        """
+        if_name = node.header.name.value
+        # Structure: 
+        # {
+        #   'signals': ['clk', 'rst_n', ...], 
+        #   'modports': {
+        #       'tb': {'clk': 'input', 'rst_n': 'output'},
+        #       'dut': {'clk': 'input', 'rst_n': 'input'}
+        #   } 
+        # }
+        self.registry.interfaces[if_name] = {'signals': [], 'modports': {}}
+
+        # Walk interface members
+        for member in node.members:
+            # 1. Detect Signals (DataDeclaration) - same as before
+            if member.kind == SyntaxKind.DataDeclaration:
+                for decl in member.declarators:
+                    sig_name = decl.name.value
+                    self.registry.interfaces[if_name]['signals'].append(sig_name)
+            
+            # 2. Detect Modports (ModportDeclaration) - COMPLETED
+            elif member.kind == SyntaxKind.ModportDeclaration:
+                for item in member.items:
+                    modport_name = item.name.value
+                    # Initialize dictionary for this modport
+                    self.registry.interfaces[if_name]['modports'][modport_name] = {}
+                    # Track direction (default to inout if undefined, though usually explicit)
+                    current_direction = "inout" 
+
+                    # Iterate through the ports in the modport list
+                    for port in item.ports:
+                        # Check if this port has an explicit direction (input/output/inout)
+                        # pyslang AST: port.direction is a Token or None
+                        if port.direction is not None:
+                            current_direction = port.direction.valueText
+                        # Get the signal name
+                        port_name = port.name.value
+                        # Store the mapping: Signal Name -> Direction
+                        self.registry.interfaces[if_name]['modports'][modport_name][port_name] = current_direction
+
+    def _ingest_interface(self, node):
+        """
+        Parses an interface to find signals and modports for later 'Port Explosion'.
+        """
+        if_name = node.header.name.value
+        self.registry.interfaces[if_name] = {'signals': [], 'modports': {}}
+
+        # Walk interface members
+        for member in node.members:
+            # Detect Signals (DataDeclaration)
+            if member.kind == SyntaxKind.DataDeclaration:
+                # Iterate variables in the declaration (e.g., logic a, b, c)
+                for decl in member.declarators:
+                    sig_name = decl.name.value
+                    # Note: Getting the full type (logic [3:0]) requires deeper parsing
+                    # For now, we store the name to prove we found it.
+                    self.registry.interfaces[if_name]['signals'].append(sig_name)
+            
+            # Detect Modports
+            elif member.kind == SyntaxKind.ModportDeclaration:
+                for item in member.items:
+                    modport_name = item.name.value
+                    self.registry.interfaces[if_name]['modports'][modport_name] = []
+                    # You would iterate item.ports here to get directions (input/output)
+
+    def _get_type_name(self, type_node):
+        """
+        Robustly extracts the string name of a type, handling parameters.
+        Example: uvm_driver#(alu_item) -> "uvm_driver"
+        """
+        # Case 1: Simple Identifier (uvm_test)
+        if hasattr(type_node, 'identifier'):
+            return type_node.identifier.value
+        
+        # Case 2: Parameterized Class (uvm_driver #(alu_item))
+        # Structure: SpecializationExpression -> target (IdentifierName)
+        if type_node.kind == SyntaxKind.ClassType: # Or similar depending on slang version
+            if hasattr(type_node, 'target'):
+                # Recurse or grab target
+                return self._get_type_name(type_node.target)
+        
+        # Fallback: Convert the node to string via slang's text method
+        # This returns "uvm_driver #(alu_item)", allowing us to substring search
+        return str(type_node)
+    
+
+# --- Phase 2 ---
+class Builder:
+    """
+    Performs 'Virtual Elaboration' by traversing build_phase() tasks.
+    """
+    def __init__(self, registry):
+        self.registry = registry
+        self.root_node = None
+
+    def build(self, root_class_name):
+        """
+        Main entry point. Starts elaboration from the top Test class.
+        """
+        print(f"Starting Virtual Elaboration at root: {root_class_name}")
+        self.root_node = HierarchyNode("uvm_test_top", root_class_name)
+        
+        # Recursive build
+        self._elaborate_node(self.root_node)
+        return self.root_node
+
+    def _elaborate_node(self, current_node):
+        """
+        1. Look up the AST for the current node's type.
+        2. Find its 'build_phase'.
+        3. Scan for create() calls and config_db sets.
+        4. Recurse for children.
+        """
+        # 1. Resolve Type to AST
+        # Try to find the class definition in our registry (agents, envs, drivers, etc.)
+        class_ast = self._find_ast_by_type(current_node.type_name)
+        
+        if not class_ast:
+            # If not in registry, it's likely a library class (uvm_sequencer) 
+            # or we missed it. We stop recursing here.
+            return
+
+        # 2. Find build_phase
+        build_phase = self._find_method(class_ast, "build_phase")
+        if not build_phase:
+            return
+
+        # 3. Scan statements in build_phase
+        # We need a visitor to look for Assignments and Function Calls
+        self._scan_build_phase(build_phase, current_node, class_ast)
+
+        # 4. Recurse (Depth-First)
+        for child in current_node.children:
+            self._elaborate_node(child)
+
+    def _find_ast_by_type(self, type_name):
+        # Search all buckets in the registry
+        for bucket in [self.registry.tests, self.registry.envs, 
+                       self.registry.agents, self.registry.drivers, 
+                       self.registry.monitors]:
+            if type_name in bucket:
+                return bucket[type_name]
+        return None
+
+    def _find_method(self, class_node, method_name):
+        for item in class_node.items:
+            # Check if the node is any type of method/task/function
+            if item.kind in [SyntaxKind.ClassMethodDeclaration, 
+                             SyntaxKind.TaskDeclaration, 
+                             SyntaxKind.FunctionDeclaration]:
+                
+                # 1. Unwrap the wrapper: if it's a ClassMethodDeclaration, get the inner declaration
+                decl = item.declaration if item.kind == SyntaxKind.ClassMethodDeclaration else item
+                
+                # 2. Safely extract the name
+                actual_name = None
+                
+                # Most slang versions store the name in the prototype
+                if hasattr(decl, 'prototype') and hasattr(decl.prototype, 'name'):
+                    name = decl.prototype.name
+                    if name.kind == SyntaxKind.IdentifierName:
+                        actual_name = name.identifier.valueText
+                else:
+                    raise RuntimeError('Unexpected: declaration do not have attr prototype or prototype does not have name')
+                
+                # 3. Check for a match
+                if actual_name == method_name:
+                    # Return the unwrapped declaration so the next step can access .items (the body)
+                    return decl 
+                    
+        return None
+
+    def _scan_build_phase(self, method_node, current_hierarchy_node, class_ast):
+        """
+        Scans the body of build_phase for:
+        1. Factory Creation: var = type::type_id::create(...)
+        2. Config DB: uvm_config_db#(...)::set(...)
+        """
+        if not method_node.items: return
+
+        for item in method_node.items:
+            # We are looking for ExpressionStatements
+            if item.kind == SyntaxKind.ExpressionStatement:
+                expr = item.expr
+                
+                # CASE A: Factory Creation (Assignment)
+                # agt = alu_agent::type_id::create("agt", this);
+                if expr.kind == SyntaxKind.AssignmentExpression:
+                    self._handle_creation(expr, current_hierarchy_node, class_ast)
+
+                # CASE B: Config DB Set (Void Call)
+                # uvm_config_db#(...)::set(...)
+                elif expr.kind == SyntaxKind.InvocationExpression: 
+                    self._handle_config_set(expr, current_hierarchy_node)
+
+    def _handle_creation(self, assignment_expr, parent_node, class_ast):
+        """
+        Logic:
+        1. Check if RHS is a call to 'create'.
+        2. Get the LHS variable name (e.g., 'agt').
+        3. Look up 'agt' in the Class Members to find its type ('alu_agent').
+        """
+        # Simplify: Convert entire RHS to string to check for "create"
+        # In a robust compiler, we would check the CallExpression structure strictly.
+        rhs_str = str(assignment_expr.right)
+        
+        if "create" in rhs_str and "type_id" in rhs_str:
+            # 1. Identify Instance Name (LHS)
+            # LHS might be 'agt' or 'this.agt'. keeping it simple:
+            inst_var_name = str(assignment_expr.left).strip()
+            
+            # 2. Resolve Type from Class Member Declaration
+            inst_type = self._lookup_member_type(class_ast, inst_var_name)
+            
+            if inst_type:
+                # 3. Create Child Node
+                # We use the variable name as the instance name for simplicity, 
+                # though strictly UVM uses the string arg in create("name").
+                new_child = HierarchyNode(inst_var_name, inst_type)
+                parent_node.add_child(new_child)
+                # print(f"  [Build] Found child '{inst_var_name}' of type '{inst_type}' in {parent_node.type_name}")
+
+    def _handle_config_set(self, call_expr, node):
+        call_str = str(call_expr)
+        if "uvm_config_db" in call_str and "set" in call_str:
+            # Just storing the string representation for Phase 3 analysis
+            # In Phase 3, you would parse the arguments: (cntxt, path, key, value)
+            node.configs.append(call_str)
+
+    def _lookup_member_type(self, class_ast, var_name):
+        """
+        Scans the class variables to find what type 'var_name' is.
+        e.g., 'alu_agent agt;' -> returns 'alu_agent'
+        """
+        for item in class_ast.items:
+            # Case 1: Direct Data Declaration
+            if item.kind == SyntaxKind.ClassPropertyDeclaration:
+                
+                for decl in item.declaration.declarators:
+                    if decl.name.valueText.strip() == var_name.strip():
+                        return self._robust_type_name(item.declaration.type.name.identifier.valueText)            
+        return None
+
+    def _robust_type_name(self, type_node):
+        # Reuse logic from Phase 1 to get string name of type
+        return str(type_node)
+
+
+# --- Phase 3 ---
+class RTLPort:
+    def __init__(self, name, direction, width="1"):
+        self.name = name
+        self.direction = direction  # "input" or "output"
+        self.width = width
+
+    def __repr__(self):
+        return f"{self.direction} logic [{self.width}:0] {self.name}"
+
+class RTLModuleDefinition:
+    """
+    Represents the final Synthesized Module (e.g., 'module alu_driver_rtl ...')
+    """
+    def __init__(self, module_name):
+        self.name = module_name
+        self.ports = []      # List of RTLPort
+        self.wires = []      # Internal wires for Containers
+        self.instances = []  # Sub-modules instantiated here
+
+    def add_port(self, name, direction, width="0"):
+        # Helper to avoid duplicates
+        self.ports.append(RTLPort(name, direction, width))
+
+# --- Phase 3 Logic ---
+
+class Connector:
+    def __init__(self, registry, hierarchy_root):
+        self.registry = registry
+        self.root = hierarchy_root
+        self.modules = {} # Map: UVM Class Name -> RTLModuleDefinition
+
+    def run(self):
+        print("Starting Phase 3: Connectivity Analysis...")
+        
+        # 1. Propagate Virtual Interfaces (Simulating config_db::set/get)
+        # In a real tool, we trace 'set' calls. Here, we'll implement the logic 
+        # specifically for the 'tb_top' -> 'test' -> 'env' flow you provided.
+        self._propagate_interfaces(self.root)
+
+        # 2. Synthesize Leafs (Drivers/Monitors)
+        self._synthesize_leafs(self.root)
+
+        # 3. Synthesize Containers (Agents/Envs) - Wiring them together
+        self._synthesize_containers(self.root)
+
+        return self.modules
+
+    def _propagate_interfaces(self, node, inherited_if=None):
+        """
+        Pushes interface info down the tree.
+        Simplified: We assume 'alu_if' is passed down to everyone.
+        """
+        # In reality, we parse node.configs to find 'set' calls.
+        # For this prototype, we assume the root passes 'alu_if' to children.
+        current_if = inherited_if
+        
+        # Check if this node has a specific interface handle variable (e.g. 'vif')
+        # We look at the class definition in the registry.
+        class_node = self._find_ast_node(node.type_name)
+        if class_node:
+             # Find 'virtual alu_if.tb vif' member
+             vif_info = self._find_virtual_interface_handle(class_node)
+             if vif_info:
+                 node.vif_def = vif_info # Store for Step 2
+                 current_if = vif_info   # Pass down to children
+
+        for child in node.children:
+            self._propagate_interfaces(child, current_if)
+
+    def _synthesize_leafs(self, node):
+        # Recursively visit children first
+        for child in node.children:
+            self._synthesize_leafs(child)
+
+        # Process only Leafs (Driver/Monitor)
+        if node.type_name in self.registry.drivers or node.type_name in self.registry.monitors:
+            print(f"  [Synth] Generating Leaf Ports for {node.name} ({node.type_name})")
+            rtl_mod = RTLModuleDefinition(f"{node.type_name}_rtl")
+            
+            # A. Standard Ports
+            rtl_mod.add_port("clk", "input")
+            rtl_mod.add_port("rst_n", "input")
+
+            # B. Explode Interface (Rule 2)
+            if hasattr(node, 'vif_def'):
+                self._explode_interface_ports(rtl_mod, node.vif_def)
+            else:
+                print(f"    WARNING: No virtual interface found for {node.name}")
+
+            # C. Handshake Ports (Rule 5 & Handshake Refinement)
+            if node.type_name in self.registry.drivers:
+                self._add_stimuli_handshake_ports(rtl_mod)
+
+            self.modules[node.type_name] = rtl_mod
+
+    def _synthesize_containers(self, node):
+        # Skip leafs
+        if node.type_name in self.registry.drivers or node.type_name in self.registry.monitors:
+            return
+
+        # Recursively process children first
+        for child in node.children:
+            self._synthesize_containers(child)
+
+        print(f"  [Synth] Generating Container Wiring for {node.name} ({node.type_name})")
+        rtl_mod = RTLModuleDefinition(f"{node.type_name}_rtl")
+
+        rtl_mod.add_port("clk",   "input")
+        rtl_mod.add_port("rst_n", "input")
+
+        # BUG FIX: Propagate vif_* interface ports from the leaf driver module up
+        # through all container levels so each container exposes the DUT signals.
+        driver_rtl = self._find_descendant_driver_rtl(node)
+        if driver_rtl:
+            # Internal handshake ports stay internal — skip them here
+            _internal = {"clk", "rst_n", "req_valid", "req_ready", "req_seed_load",
+                         "constraint_id", "lower_bound", "upper_bound",
+                         "rsp_ready", "rsp_valid", "solved_data"}
+            for p in driver_rtl.ports:
+                if p.name not in _internal:
+                    rtl_mod.add_port(p.name, p.direction, p.width)
+
+            # Add external seed-load ports for all containers that wrap a driver
+            rtl_mod.add_port("req_seed_load_ext", "input")
+            rtl_mod.add_port("seed_ext",          "input", "31")
+
+        # Wire driver <-> sequencer inside agent-level containers
+        self._analyze_connections(node, rtl_mod)
+
+        self.modules[node.type_name] = rtl_mod
+
+    def _find_descendant_driver_rtl(self, node):
+        """Return the RTLModuleDefinition of the first driver found in this subtree."""
+        for child in node.children:
+            if child.type_name in self.registry.drivers:
+                return self.modules.get(child.type_name)
+            result = self._find_descendant_driver_rtl(child)
+            if result:
+                return result
+        return None
+
+    # --- Helper Logic ---
+
+    def _find_virtual_interface_handle(self, class_node):
+        """
+        Scans class members for 'virtual alu_if.tb vif;'
+        Returns dict: {'if_name': 'alu_if', 'modport': 'tb', 'var_name': 'vif'}
+        """
+        # FIX 1: Iterate over .items instead of .members
+        for item in class_node.items:
+            
+            # FIX 2: Check for the ClassPropertyDeclaration wrapper
+            if item.kind == SyntaxKind.ClassPropertyDeclaration:
+                
+                # The actual declaration is inside the wrapper
+                decl = item.declaration
+                
+                # We stringify the type to look for the "virtual" keyword
+                # Slang often represents this as a VirtualInterfaceType node
+                type_str = str(decl.type)
+                
+                if "virtual" in type_str and "interface" not in type_str: 
+                    # Extract "alu_if" and "tb"
+                    # Format usually: virtual alu_if.tb
+                    parts = type_str.replace("virtual", "").strip().split('.')
+                    if len(parts) >= 1:
+                        if_name = parts[0]
+                        modport = parts[1] if len(parts) > 1 else None
+                        
+                        # FIX 3: Safely extract the variable name from the declarators
+                        # Assuming a single declaration like `virtual alu_if vif;`
+                        if decl.declarators:
+                            var_name = decl.declarators[0].name.valueText
+                        else:
+                            var_name = None
+                            
+                        return {'if_name': if_name, 'modport': modport, 'var_name': var_name}
+        return None
+
+    def _explode_interface_ports(self, rtl_mod, vif_info):
+        """
+        Rule 2 Implementation:
+        Look up interface definition -> Get Modport -> Create Ports
+        """
+        if_name = vif_info['if_name']
+        modport_name = vif_info['modport']
+        
+        if if_name not in self.registry.interfaces:
+            print(f"    ERROR: Interface '{if_name}' definition not found in registry.")
+            return
+
+        if_def = self.registry.interfaces[if_name]
+        
+        # 1. Get all signals defined in the interface
+        # 2. Filter/Direct them based on Modport
+        # Note: pyslang Modport parsing is complex. 
+        # For this prototype, we will infer direction from the UVM code context
+        # Driver (tb modport) -> Outputs what DUT inputs.
+        
+        print(f"    Exploding {if_name}.{modport_name}...")
+        
+        # Hack/Heuristic for prototype: 
+        # If modport is 'tb': 'result'/'done' are INPUTS, others OUTPUTS
+        # If modport is 'dut': 'result'/'done' are OUTPUTS, others INPUTS
+        # In production, you MUST parse the `modport` AST node explicitly.
+        
+        all_signals = if_def['signals']
+
+        # Width heuristics for common ALU interface signals.
+        # The interface AST currently only gives us signal names, not bit-widths,
+        # so we apply known widths here rather than leaving everything as 1-bit.
+        width_hints = {
+            'op':     '1',   # [1:0]  2-bit
+            'a':      '7',   # [7:0]  8-bit
+            'b':      '7',   # [7:0]  8-bit
+            'result': '7',   # [7:0]  8-bit
+        }
+
+        for sig in all_signals:
+            port_name = f"vif_{sig}"
+            direction = "input"
+            width     = width_hints.get(sig, '0')  # default 1-bit scalar
+
+            if modport_name == "tb":
+                if sig in ["result", "done", "clk"]:
+                    direction = "input"
+                else:
+                    direction = "output"
+            elif modport_name == "dut":
+                direction = "input"
+
+            rtl_mod.add_port(port_name, direction, width)
+
+    def _add_stimuli_handshake_ports(self, rtl_mod):
+        """
+        Handshake ports matching the stimuli_fsm interface.
+        """
+        # Request (Driver -> Stimuli)
+        rtl_mod.add_port("req_valid",     "output")
+        rtl_mod.add_port("req_ready",     "input")
+        rtl_mod.add_port("req_seed_load", "output")       # seed load signal
+        rtl_mod.add_port("constraint_id", "output", "1")  # [1:0] 2-bit
+        rtl_mod.add_port("lower_bound",   "output", "31") # [31:0]
+        rtl_mod.add_port("upper_bound",   "output", "31") # [31:0]
+
+        # Response (Stimuli -> Driver)
+        rtl_mod.add_port("rsp_ready",   "output")
+        rtl_mod.add_port("rsp_valid",   "input")
+        rtl_mod.add_port("solved_data", "input", "31")    # [31:0]
+
+    def _analyze_connections(self, container_node, rtl_mod):
+        """
+        Parses connect_phase to find wires.
+        If we find Driver + Sequencer, we generate the connecting wires.
+        """
+        # Check children
+        driver_inst = None
+        sequencer_inst = None
+        
+        for child in container_node.children:
+            if child.type_name in self.registry.drivers:
+                driver_inst = child
+            # In Phase 2 we saw 'sqr' has type 'uvm_sequencer #(alu_item)'
+            if "uvm_sequencer" in child.type_name:
+                sequencer_inst = child
+
+        if driver_inst and sequencer_inst:
+            print(f"    [Connect] Found Driver '{driver_inst.name}' <-> Sequencer '{sequencer_inst.name}'")
+            # BUG FIX: Wires must match the stimuli_fsm / driver handshake interface,
+            # not the old req_op/w_op wires that no longer exist as ports.
+            rtl_mod.wires.append("wire        w_req_valid;")
+            rtl_mod.wires.append("wire        w_req_ready;")
+            rtl_mod.wires.append("wire [1:0]  w_constraint_id;")
+            rtl_mod.wires.append("wire [31:0] w_lower_bound, w_upper_bound;")
+            rtl_mod.wires.append("wire        w_rsp_ready;")
+            rtl_mod.wires.append("wire        w_rsp_valid;")
+            rtl_mod.wires.append("wire [31:0] w_solved_data;")
+            rtl_mod.wires.append("wire        w_driver_seed_load;")
+            
+            # In Phase 5 (Assembly), these wires will be passed 
+            # to the Driver instance and the Stimuli Generator instance.
+
+    def _find_ast_node(self, type_name):
+        # Reuse lookup logic
+        for bucket in [self.registry.drivers, self.registry.monitors, 
+                       self.registry.agents, self.registry.envs, self.registry.tests]:
+            if type_name in bucket: return bucket[type_name]
+        return None
+
+
+# Part 4: --- FSM Data Structures ---
+import pyslang
+from pyslang import SyntaxKind
+
+# --- FSM Data Structures ---
+
+class FSMState:
+    def __init__(self, name):
+        self.name = name
+        self.actions = []       # List of strings (e.g., "vif_start = 1'b1;")
+        self.transitions = []   # List of tuples: (condition_str, target_state_obj)
+        self.is_reset_state = False
+
+    def add_action(self, action_str):
+        self.actions.append(action_str)
+
+    def add_transition(self, condition, target_state):
+        self.transitions.append((condition, target_state))
+
+    def __repr__(self):
+        return self.name
+
+class Synthesizer:
+    def __init__(self, registry, rtl_modules):
+        self.registry = registry
+        self.rtl_modules = rtl_modules
+        self.state_counter = 0
+
+    def run(self, f):
+        print("Starting Phase 4: Behavioral Synthesis...")
+        for class_name, rtl_mod in self.rtl_modules.items():
+            # Only synthesize drivers/monitors (Leafs)
+            if class_name in self.registry.drivers:
+                self._synthesize_driver_fsm(class_name, rtl_mod, f)
+            # (Monitor synthesis is similar but simpler, skipped for brevity)
+
+    def _synthesize_driver_fsm(self, class_name, rtl_mod, f):
+        print(f"  [FSM] Synthesizing {class_name}...")
+        
+        # 1. Find run_phase using the hierarchy lookup
+        run_phase = self._find_method_in_hierarchy(class_name, "run_phase")
+        if not run_phase:
+            print(f"    WARNING: No run_phase found for {class_name}")
+            return
+
+        # 2. Initialize FSM Slicing
+        self.state_counter = 0
+        start_state = self._create_state("S_RESET")
+        start_state.is_reset_state = True
+        
+        entry_state = self._create_state("S_ENTRY")
+        start_state.add_transition("default", entry_state)
+
+        # 3. Run the Slicer (CFG Splitting)
+        # Fix: 'run_phase' is a TaskDeclaration. Its contents are in '.items'
+        active_state = entry_state
+        if hasattr(run_phase, 'items'):
+            for item in run_phase.items:
+                active_state = self._slice_statement(item, active_state)
+        
+        # 4. Generate RTL Code
+        self._emit_fsm_rtl(rtl_mod, start_state, f)
+
+    # --- The Slicer (Core Logic) ---
+
+    def _slice_block(self, statement_node, current_state):
+        """
+        Walks a block of statements. Appends actions to current_state.
+        If a yield point is hit, creates a NEW state and returns it.
+        """
+        active_state = current_state
+
+        # Handle Block (begin...end)
+        if statement_node.kind == pyslang.BlockStatement:
+            for item in statement_node.items:
+                active_state = self._slice_statement(item, active_state)
+            return active_state
+            
+        # Handle Single Statement
+        else:
+            return self._slice_statement(statement_node, active_state)
+
+    def _slice_statement(self, stmt, current_state):
+        """
+        Decides if a statement is Combinational (Action) or Blocking (Yield).
+        """
+        if stmt.kind in [SyntaxKind.DataDeclaration, SyntaxKind.LocalVariableDeclaration, SyntaxKind.EmptyStatement]:
+            return current_state
+
+        # BUG FIX: SequentialBlockStatement must iterate children and return, not fall through.
+        # Previously this set active_state but had no return, causing the entire block contents
+        # to fall through to the string-dump else clause and land verbatim in always_comb.
+        if stmt.kind in [SyntaxKind.SequentialBlockStatement, SymbolKind.StatementBlock] or \
+           stmt.kind == pyslang.BlockStatement:
+            active_state = current_state
+            if hasattr(stmt, 'items'):
+                for item in stmt.items:
+                    active_state = self._slice_statement(item, active_state)
+            return active_state
+
+        # 1. Loop (forever / while)
+        elif stmt.kind == SyntaxKind.ForeverStatement:
+            loop_head = self._create_state("S_LOOP_HEAD")
+            current_state.add_transition("default", loop_head)
+
+            # Slice the body of the loop
+            loop_end = self._slice_statement(stmt.statement, loop_head)
+
+            loop_end.add_transition("default", loop_head)
+            return self._create_state("S_UNREACHABLE")
+
+        # 2. Blocking Event (@posedge clk)
+        elif stmt.kind == SyntaxKind.TimingControlStatement or \
+             (stmt.kind == SyntaxKind.ExpressionStatement and "posedge" in str(stmt)):
+            next_state = self._create_state("S_NEXT")
+            current_state.add_transition("default", next_state)
+            return next_state
+
+        # 3. Do-While Loop
+        elif stmt.kind == SyntaxKind.DoWhileStatement:
+            wait_state = self._create_state("S_WAIT_LOOP")
+            current_state.add_transition("default", wait_state)
+
+            cond_str = str(stmt.condition)
+            next_state = self._create_state("S_AFTER_WAIT")
+
+            wait_state.add_transition(f"{cond_str}", wait_state)
+            wait_state.add_transition("default", next_state)
+            return next_state
+
+        # 4. Handshake (get_next_item)
+        elif self._is_get_next_item(stmt):
+            req_state = self._create_state("S_REQ_ITEM")
+            current_state.add_transition("default", req_state)
+
+            req_state.add_action("req_valid = 1'b1;")
+            req_state.add_action("rsp_ready = 1'b1;")
+            req_state.add_action("constraint_id = 2'b0;")
+            req_state.add_action("lower_bound = 32'h0;")
+            req_state.add_action("upper_bound = 32'hFFFFFFFF;")
+
+            wait_rsp_state = self._create_state("S_WAIT_RSP")
+            req_state.add_transition("!req_ready", req_state)
+            req_state.add_transition("req_ready", wait_rsp_state)
+
+            wait_rsp_state.add_action("req_valid = 1'b0;")
+            wait_rsp_state.add_action("rsp_ready = 1'b1;")
+
+            next_state = self._create_state("S_GOT_ITEM")
+            wait_rsp_state.add_transition("!rsp_valid", wait_rsp_state)
+            wait_rsp_state.add_transition("rsp_valid", next_state)
+
+            # BUG FIX: Use next_*_reg names (registered outputs) not bare wire names
+            next_state.add_action("rsp_ready = 1'b0;")
+            next_state.add_action("next_req_op_reg = solved_data[17:16];")
+            next_state.add_action("next_req_a_reg  = solved_data[15:8];")
+            next_state.add_action("next_req_b_reg  = solved_data[7:0];")
+
+            return next_state
+
+        # 5. Handshake (item_done)
+        elif self._is_item_done(stmt):
+            current_state.add_action("rsp_ready = 1'b0;")
+            return current_state
+
+        # 6. Standard assignment or unknown statement.
+        # String-based fallback detection catches anything the kind-checks missed.
+        else:
+            stmt_str = str(stmt)
+
+            # Catch timing controls that slipped through kind checks
+            if "@" in stmt_str and ("posedge" in stmt_str or "negedge" in stmt_str):
+                next_state = self._create_state("S_NEXT")
+                current_state.add_transition("default", next_state)
+                return next_state
+
+            # Catch do-while that slipped through
+            if "do" in stmt_str and "while" in stmt_str:
+                wait_state = self._create_state("S_WAIT_LOOP")
+                current_state.add_transition("default", wait_state)
+                next_state = self._create_state("S_AFTER_WAIT")
+                # Condition unknown without AST; default: stay in wait, then exit
+                wait_state.add_transition("default", wait_state)
+                wait_state.add_transition("default", next_state)
+                return next_state
+
+            # Catch get_next_item that slipped through
+            if "get_next_item" in stmt_str:
+                req_state = self._create_state("S_REQ_ITEM")
+                current_state.add_transition("default", req_state)
+                req_state.add_action("req_valid = 1'b1;")
+                req_state.add_action("rsp_ready = 1'b1;")
+                req_state.add_action("constraint_id = 2'b0;")
+                req_state.add_action("lower_bound = 32'h0;")
+                req_state.add_action("upper_bound = 32'hFFFFFFFF;")
+                wait_rsp_state = self._create_state("S_WAIT_RSP")
+                req_state.add_transition("req_ready", wait_rsp_state)
+                wait_rsp_state.add_action("rsp_ready = 1'b1;")
+                next_state = self._create_state("S_GOT_ITEM")
+                wait_rsp_state.add_transition("rsp_valid", next_state)
+                next_state.add_action("next_req_op_reg = solved_data[17:16];")
+                next_state.add_action("next_req_a_reg  = solved_data[15:8];")
+                next_state.add_action("next_req_b_reg  = solved_data[7:0];")
+                return next_state
+
+            # Catch item_done that slipped through
+            if "item_done" in stmt_str:
+                current_state.add_action("rsp_ready = 1'b0;")
+                return current_state
+
+            # Truly combinational assignment
+            code = stmt_str.replace("vif.", "vif_").replace("<=", "=")
+            current_state.add_action(code)
+            return current_state
+        
+        
+    # --- Helpers ---
+
+    def _create_state(self, base_name):
+        name = f"{base_name}_{self.state_counter}"
+        self.state_counter += 1
+        return FSMState(name)
+
+    def _is_get_next_item(self, stmt):
+        return stmt.kind == SyntaxKind.ExpressionStatement and "get_next_item" in str(stmt)
+
+    def _is_item_done(self, stmt):
+        return stmt.kind == SyntaxKind.ExpressionStatement and "item_done" in str(stmt)
+
+    def _find_method_in_hierarchy(self, start_class_name, method_name):
+        """
+        Recursively searches up the inheritance chain using the unwrapped AST logic.
+        """
+        current_class_name = start_class_name
+
+        while current_class_name:
+            class_node = self._find_ast_node_in_registry(current_class_name)
+            if not class_node: 
+                return None
+
+            for item in class_node.items:
+                if item.kind in [SyntaxKind.ClassMethodDeclaration, 
+                                 SyntaxKind.TaskDeclaration, 
+                                 SyntaxKind.FunctionDeclaration]:
+                    
+                    # Unwrap the declaration
+                    decl = item.declaration if item.kind == SyntaxKind.ClassMethodDeclaration else item
+                    
+                    actual_name = None
+                    if hasattr(decl, 'prototype') and hasattr(decl.prototype, 'name'):
+                        name = decl.prototype.name
+                        if name.kind == SyntaxKind.IdentifierName:
+                            actual_name = name.identifier.valueText
+                    
+                    if actual_name == method_name:
+                        return decl # Found it!
+
+            # Move up the hierarchy if not found
+            current_class_name = self._get_base_class_name(class_node)
+            
+        return None
+
+    def _get_base_class_name(self, class_node):
+        if not class_node.baseClass: return None
+        # Safely extract the parent class name
+        return self._robust_type_name(class_node.baseClass.type)
+
+    def _get_base_class_name(self, class_node):
+        """
+        Extracts the name of the parent class from the 'extends' clause.
+        """
+        if not class_node.baseClass:
+            return None
+        
+        # Reuse your type name extractor from Phase 1
+        # Assumes format: class Child extends Parent;
+        return self._robust_type_name(class_node.baseClass.type)
+
+    def _find_ast_node_in_registry(self, type_name):
+        """
+        Helper to look up any class type in the registry.
+        """
+        for bucket in [self.registry.drivers, self.registry.monitors, 
+                       self.registry.agents, self.registry.envs, self.registry.tests]:
+            if type_name in bucket:
+                return bucket[type_name]
+        return None
+    
+    # ... inside Phase4Synthesizer class ...
+    # Helper to clean up complex type names (e.g. "uvm_driver#(item)" -> "uvm_driver")
+    def _robust_type_name(self, type_node):
+         name = str(type_node)
+         if "#" in name: # Remove parameterization for lookup
+             return name.split("#")[0].strip()
+         return name
+
+    # --- RTL Emitter ---
+
+    def _emit_fsm_rtl(self, rtl_mod, start_state, f):
+        # Flatten Graph to list (BFS)
+        all_states = set()
+        queue = [start_state]
+        while queue:
+            s = queue.pop(0)
+            if s in all_states: continue
+            all_states.add(s)
+            for _, target in s.transitions:
+                queue.append(target)
+
+        state_list = list(all_states)
+        state_enum_names = [s.name for s in state_list]
+
+        print(f"\n  [Code Gen] Writing Logic for {rtl_mod.name}")
+
+        # 1. State Enum
+        f.write(f"    typedef enum logic [{len(state_list).bit_length()-1}:0] {{\n")
+        f.write(f"      {', '.join(state_enum_names)}\n")
+        f.write(f"    }} state_t;\n")
+        f.write("    state_t state, next_state;\n\n")
+
+        # 2. Data registers to hold unpacked seq_item fields
+        f.write("    // Registers to hold data from solved_data unpack\n")
+        f.write("    logic [1:0] req_op_reg, next_req_op_reg;\n")
+        f.write("    logic [7:0] req_a_reg,  next_req_a_reg;\n")
+        f.write("    logic [7:0] req_b_reg,  next_req_b_reg;\n\n")
+
+        # 3. Sequential Block — state + data registers
+        f.write("    always_ff @(posedge clk or negedge rst_n) begin\n")
+        f.write(f"      if (!rst_n) begin\n")
+        f.write(f"        state      <= {start_state.name};\n")
+        f.write(f"        req_op_reg <= '0;\n")
+        f.write(f"        req_a_reg  <= '0;\n")
+        f.write(f"        req_b_reg  <= '0;\n")
+        f.write("      end else begin\n")
+        f.write("        state      <= next_state;\n")
+        f.write("        req_op_reg <= next_req_op_reg;\n")
+        f.write("        req_a_reg  <= next_req_a_reg;\n")
+        f.write("        req_b_reg  <= next_req_b_reg;\n")
+        f.write("      end\n")
+        f.write("    end\n\n")
+
+        # 4. Combinational Block
+        f.write("    always_comb begin\n")
+        f.write("      // Default combinatorial assignments to avoid latches\n")
+        f.write("      next_state      = state;\n")
+        f.write("      next_req_op_reg = req_op_reg;\n")
+        f.write("      next_req_a_reg  = req_a_reg;\n")
+        f.write("      next_req_b_reg  = req_b_reg;\n\n")
+        f.write("      vif_start       = 1'b0;\n")
+        f.write("      vif_op          = req_op_reg;\n")
+        f.write("      vif_a           = req_a_reg;\n")
+        f.write("      vif_b           = req_b_reg;\n\n")
+        f.write("      req_valid       = 1'b0;\n")
+        f.write("      rsp_ready       = 1'b0;\n")
+        f.write("      req_seed_load   = 1'b0;\n")
+        f.write("      constraint_id   = 2'b0;\n")
+        f.write("      lower_bound     = 32'h0;\n")
+        f.write("      upper_bound     = 32'h0;\n\n")
+
+        f.write("      case (state)\n")
+        for s in state_list:
+            f.write(f"        {s.name}: begin\n")
+            for action in s.actions:
+                f.write(f"          {action}\n")
+
+            if not s.transitions:
+                pass  # Terminal state
+            elif len(s.transitions) == 1 and s.transitions[0][0] == "default":
+                f.write(f"          next_state = {s.transitions[0][1].name};\n")
+            else:
+                first = True
+                for cond, target in s.transitions:
+                    if cond == "default":
+                        f.write(f"          else next_state = {target.name};\n")
+                    else:
+                        prefix = "if" if first else "else if"
+                        f.write(f"          {prefix} ({cond}) next_state = {target.name};\n")
+                        first = False
+            f.write("        end\n")
+        f.write("      endcase\n")
+        f.write("    end\n")
+
+
+# Part 5
+class Assembler:
+    def __init__(self, rtl_modules, hierarchy_root, registry):
+        self.modules = rtl_modules
+        self.root = hierarchy_root
+        self.registry = registry
+
+    def run(self, output_filename="uvm_synthesized.sv"):
+        print(f"Starting Phase 5: Code Assembly into '{output_filename}'...")
+        
+        # Open the single file once
+        with open(output_filename, "w") as f:
+            f.write("// ====================================================\n")
+            f.write("// Auto-Generated UVM to RTL Synthesis Output\n")
+            f.write("// ====================================================\n\n")
+
+            # 1. Write the Leaf Modules (Drivers/Monitors with FSMs)
+            self._write_leaf_modules(f)
+
+            # 2. Write the Container Modules (Agents/Envs/Test)
+            self._write_container_modules(f)
+
+            # 3. Write the Top-Level System Wrapper
+            self._write_top_level_wrapper(f)
+            
+        print("Assembly complete.")
+
+    def _write_leaf_modules(self, f):
+        """
+        Writes the driver and monitor modules to the shared file.
+        """
+        for mod_name, mod_def in self.modules.items():
+            synthesizer = Synthesizer(self.registry, self.modules)  # BUG FIX: use self.* not globals
+
+            if mod_name in self.registry.drivers:
+                print(f"  [Write] Appending module {mod_def.name}...")
+                
+                f.write(f"// --- Leaf Module: {mod_def.name} ---\n")
+                f.write(f"module {mod_def.name} (\n")
+                self._write_ports(f, mod_def.ports)
+                f.write(");\n\n")
+                
+                # FSM Code Injection Point
+                synthesizer.run(f)
+                # f.write("  // For now, generating placeholder logic\n")
+                # f.write("  always_comb req_ready = 1'b1;\n\n")
+                
+                f.write("endmodule\n\n")
+
+    def _write_container_modules(self, f):
+        """
+        Writes Agents, Envs, and Test modules to the shared file.
+        Uses post-order DFS so that inner modules (agent) appear before outer ones (env, test).
+        """
+        processed_types = set()
+        self._write_container_post_order(f, self.root, processed_types)
+
+    def _write_container_post_order(self, f, node, processed_types):
+        for child in node.children:
+            self._write_container_post_order(f, child, processed_types)
+        if node.type_name not in processed_types and node.type_name not in self.registry.drivers:
+            self._write_container_module(f, node)
+            processed_types.add(node.type_name)
+
+    def _write_container_module(self, f, node):
+        mod_def = self.modules.get(node.type_name)
+        if not mod_def: return
+
+        print(f"  [Write] Appending module {mod_def.name}...")
+
+        f.write(f"// --- Container Module: {mod_def.name} ---\n")
+        f.write(f"module {mod_def.name} (\n")
+        self._write_ports(f, mod_def.ports)
+        f.write(");\n")
+
+        has_driver_child     = any(c.type_name in self.registry.drivers for c in node.children)
+        has_sequencer_child  = any("uvm_sequencer" in c.type_name for c in node.children)
+
+        if has_driver_child or has_sequencer_child:
+            # Agent-level: explicit wires + instantiations
+            f.write("\n")
+            for wire in mod_def.wires:
+                f.write(f"  {wire}\n")
+            f.write("\n")
+            for child in node.children:
+                if "uvm_sequencer" in child.type_name:
+                    self._write_stimuli_generator_instantiation(f, child)
+                else:
+                    self._write_child_instantiation(f, child)
+        else:
+            # Env/Test level: single child, use wildcard port connection
+            f.write("\n")
+            for child in node.children:
+                child_module_name = f"{child.type_name}_rtl"
+                inst_name = f"u_{child.name}"
+                f.write(f"  {child_module_name} {inst_name} (.*);"
+                        f" // SystemVerilog wildcard connection for matching names\n")
+
+        f.write("endmodule\n\n")
+
+    def _write_child_instantiation(self, f, child_node):
+        child_module_name = f"{child_node.type_name}_rtl"
+        inst_name = f"u_{child_node.name}"
+
+        f.write(f"  {child_module_name} {inst_name} (\n")
+        f.write(f"    .clk           (clk),\n")
+        f.write(f"    .rst_n         (rst_n),\n")
+
+        if child_node.type_name in self.registry.drivers:
+            # BUG FIX: use actual driver ports (vif_* + handshake via solved_data),
+            # not the stale req_op/w_op ports that no longer exist.
+            f.write(f"    // DUT Interface\n")
+            f.write(f"    .vif_rst_n     (vif_rst_n),\n")
+            f.write(f"    .vif_start     (vif_start),\n")
+            f.write(f"    .vif_op        (vif_op),\n")
+            f.write(f"    .vif_a         (vif_a),\n")
+            f.write(f"    .vif_b         (vif_b),\n")
+            f.write(f"    .vif_result    (vif_result),\n")
+            f.write(f"    .vif_done      (vif_done),\n")
+            f.write(f"    // Handshake to stimuli_fsm\n")
+            f.write(f"    .req_valid     (w_req_valid),\n")
+            f.write(f"    .req_ready     (w_req_ready),\n")
+            f.write(f"    .req_seed_load (w_driver_seed_load),\n")
+            f.write(f"    .constraint_id (w_constraint_id),\n")
+            f.write(f"    .lower_bound   (w_lower_bound),\n")
+            f.write(f"    .upper_bound   (w_upper_bound),\n")
+            f.write(f"    .rsp_ready     (w_rsp_ready),\n")
+            f.write(f"    .rsp_valid     (w_rsp_valid),\n")
+            f.write(f"    .solved_data   (w_solved_data)\n")
+
+        f.write("  );\n\n")
+
+    def _write_stimuli_generator_instantiation(self, f, _node):
+        # BUG FIX: Use stimuli_fsm (the actual RTL module) with the correct port list.
+        f.write(f"  stimuli_fsm sqr_fsm (\n")
+        f.write(f"    .clk          (clk),\n")
+        f.write(f"    .rst_n        (rst_n),\n")
+        f.write(f"    .seed         (seed_ext),\n")
+        f.write(f"    .lower_bound  (w_lower_bound),\n")
+        f.write(f"    .upper_bound  (w_upper_bound),\n")
+        f.write(f"    .constraint_id(w_constraint_id),\n")
+        f.write(f"    .req_seed_load(req_seed_load_ext | w_driver_seed_load),\n")
+        f.write(f"    .req_valid    (w_req_valid),\n")
+        f.write(f"    .req_ready    (w_req_ready),\n")
+        f.write(f"    .solved_data  (w_solved_data),\n")
+        f.write(f"    .rsp_valid    (w_rsp_valid),\n")
+        f.write(f"    .rsp_ready    (w_rsp_ready)\n")
+        f.write("  );\n\n")
+
+    def _write_top_level_wrapper(self, f):
+        """
+        Generates the final 'tb_top_synth' module.
+        """
+        print("  [Write] Appending tb_top_synth...")
+
+        f.write("// --- Top-Level Wrapper: tb_top_synth ---\n")
+        f.write("module tb_top_synth (\n")
+        f.write("  input wire clk,\n")
+        f.write("  input wire rst_n\n")
+        f.write(");\n\n")
+
+        f.write("  // 1. Wires to bridge Synthesized UVM <-> DUT\n")
+        f.write("  wire       start;\n")
+        f.write("  wire [1:0] op;\n")
+        f.write("  wire [7:0] a, b;\n")
+        f.write("  wire [7:0] result;\n")
+        f.write("  wire       done;\n\n")
+
+        # BUG FIX: Declare seed-load signals (missing previously — caused 'undefined variable')
+        f.write("  logic        req_seed_load_ext;\n")
+        f.write("  logic [31:0] seed_ext;\n\n")
+
+        f.write("  // 2. Instantiate the original DUT\n")
+        f.write("  alu_dut dut (\n")
+        f.write("    .clk   (clk),\n")
+        f.write("    .rst_n (rst_n),\n")
+        f.write("    .start (start),\n")
+        f.write("    .op    (op),\n")
+        f.write("    .a     (a),\n")
+        f.write("    .b     (b),\n")
+        f.write("    .result(result),\n")
+        f.write("    .done  (done)\n")
+        f.write("  );\n\n")
+
+        f.write("  // 3. Instantiate the Synthesized UVM Root (alu_test_rtl)\n")
+        f.write("  alu_test_rtl uvm_top (\n")
+        f.write("    .clk               (clk),\n")
+        f.write("    .rst_n             (rst_n),\n")
+        f.write("    .vif_rst_n         (),\n")
+        f.write("    .vif_start         (start),\n")
+        f.write("    .vif_op            (op),\n")
+        f.write("    .vif_a             (a),\n")
+        f.write("    .vif_b             (b),\n")
+        f.write("    .vif_result        (result),\n")
+        f.write("    .vif_done          (done),\n")
+        f.write("    .req_seed_load_ext (req_seed_load_ext),\n")
+        f.write("    .seed_ext          (seed_ext)\n")
+        f.write("  );\n\n")
+
+        f.write("  // Simple initial block to kick off the LFSR seed\n")
+        f.write("  initial begin\n")
+        f.write("    req_seed_load_ext = 1'b0;\n")
+        f.write("    seed_ext          = 32'h0;\n")
+        f.write("    wait (rst_n == 1'b1);\n")
+        f.write("    @(posedge clk);\n")
+        f.write("    seed_ext          = 32'hF234567;\n")
+        f.write("    req_seed_load_ext = 1'b1;\n")
+        f.write("    @(posedge clk);\n")
+        f.write("    req_seed_load_ext = 1'b0;\n")
+        f.write("  end\n\n")
+
+        f.write("endmodule\n")
+
+    def _write_ports(self, f, ports):
+        lines = []
+        for p in ports:
+            # width "0" → 1-bit scalar (no brackets); any other value → explicit range
+            width_str = f"[{p.width}:0] " if p.width != "0" else ""
+            lines.append(f"  {p.direction} logic {width_str}{p.name}")
+        f.write(",\n".join(lines))
+        f.write("\n")
+
+
+# --- Execution ---
+
+# Part 1
+# 1. Create AST Tree (Using the file content you provided)
+file_path = "alu_design_ver.sv" 
+tree = pyslang.SyntaxTree.fromFile(file_path)
+
+# 2. Run Phase 1 Classifier
+classifier = Classifier(tree)
+registry = classifier.run()
+
+# 3. Output Results
+registry.summary()
+
+# Part 2
+builder = Builder(registry)
+
+# 2. Run Virtual Elaboration
+# We know 'alu_test' is the root because it extends uvm_test
+root_type = list(registry.tests.keys())[0] # e.g., "alu_test"
+hierarchy_root = builder.build(root_type)
+
+# 3. Visualize
+print("\n--- Virtual Elaboration Tree ---")
+hierarchy_root.print_tree()
+
+
+# Part 3
+connector = Connector(registry, hierarchy_root)
+rtl_modules = connector.run()
+
+# Output Results
+print("\n--- Synthesized RTL Interfaces ---")
+for mod_name, mod_def in rtl_modules.items():
+    print(f"Module: {mod_def.name}")
+    for p in mod_def.ports:
+        print(f"  {p}")
+    if mod_def.wires:
+        print(f"  Internal Wires: {len(mod_def.wires)} defined")
+
+# Part 4 runs inside phase 5
+
+# Part 5
+assembler = Assembler(rtl_modules, hierarchy_root, registry)
+assembler.run()
