@@ -23,7 +23,7 @@ class mon #(int DATA_WIDTH=32, int ADDR_WIDTH=16) extends uvm_monitor;
 		// transaction and writes into analysis port when complete
 		forever begin
 			@ (vif.mon_cb);
-			if (vif.rstn) begin
+			if (vif.rst_n) begin
 				req_item req = req_item::type_id::create("item");
 				req.rst_n = vif.rst_n;
 				req.re = vif.re;
