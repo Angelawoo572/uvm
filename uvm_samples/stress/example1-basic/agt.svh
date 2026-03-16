@@ -1,9 +1,9 @@
 class agt #(int DATA_WIDTH=32, int ADDR_WIDTH=16) extends uvm_agent;
-	`uvm_component_param_utils(main_agt#(DATA_WIDTH, ADDR_WIDTH))
+	`uvm_component_param_utils(agt#(DATA_WIDTH, ADDR_WIDTH))
 	
 	drv #(DATA_WIDTH, ADDR_WIDTH) m_drv;
 	mon #(DATA_WIDTH, ADDR_WIDTH) m_mon;
-	main_sqr m_sqr;
+	uvm_sequencer #(req_item) m_sqr;
 	cov m_cov;
 
 	function new(string name="agt", uvm_component parent);
@@ -14,7 +14,7 @@ class agt #(int DATA_WIDTH=32, int ADDR_WIDTH=16) extends uvm_agent;
 		super.build_phase(phase);
 		m_drv = drv #(DATA_WIDTH, ADDR_WIDTH)::type_id::create("m_drv", this);
 		m_mon = mon #(DATA_WIDTH, ADDR_WIDTH)::type_id::create("m_mon", this);
-		m_sqr = main_sqr::type_id::create("m_sqr", this);
+		m_sqr = uvm_sequencer #(req_item)::type_id::create("m_sqr", this);
 		m_cov = cov::type_id::create("m_cov", this);
 
 		`uvm_info (get_type_name(), $sformatf ("end of build phase"), UVM_NONE)

@@ -6,7 +6,8 @@ package stress_pkg;
 	// environment imports
 	`include "seq.svh"
 	`include "drv.svh"
-	`include "mon.svh"	
+	`include "mon.svh"
+	`include "cov.svh"	
 	`include "agt.svh"
 	`include "env.svh"	
 	`include "tst.svh"
