@@ -20,7 +20,7 @@ end
 
 initial begin
 	clk = 0;
-	uvm_config_db#(virtual itf)::set(null, "tb", "vif", myitf);
+	uvm_config_db#(virtual itf  #(.DATA_WIDTH(DATA_WIDTH), .ADDR_WIDTH(ADDR_WIDTH)) )::set(null, "tb", "vif", myitf);
     	run_test("example1basic");
 end
 endmodule

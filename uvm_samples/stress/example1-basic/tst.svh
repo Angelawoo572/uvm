@@ -16,6 +16,8 @@ class example1basic extends uvm_test;
         virtual task run_phase (uvm_phase phase);
                 config_seq m_seq = config_seq::type_id::create ("m_seq");
 
+                phase.phase_done.set_drain_time(this, 20ns); // this makes sure simulation keeps running for another 20 time units past the last sequence
+		
                 super.run_phase(phase);
 
                 phase.raise_objection (this);

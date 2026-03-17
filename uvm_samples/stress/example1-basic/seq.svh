@@ -38,17 +38,17 @@ class config_seq extends uvm_sequence#(req_item);
         virtual task body();
 		req = req_item::type_id::create("req");
 		start_item(req);
-		if (!req.randomize() with {rst_n==1; addr_i==MODE0_OFFSET;}) begin `uvm_error(get_type_name, "Failed to randomize sequence item") end
+		if (!req.randomize() with {rst_n==1; addr_i==MODE0_OFFSET; we==1; re==0;}) begin `uvm_error(get_type_name, "Failed to randomize sequence item") end
 		finish_item(req);
 
 		req = req_item::type_id::create("req");
 		start_item(req);
-		if (!req.randomize() with {rst_n==1; addr_i==MODE1_OFFSET;}) begin `uvm_error(get_type_name, "Failed to randomize sequence item") end
+		if (!req.randomize() with {rst_n==1; addr_i==MODE1_OFFSET; we==1; re==0;}) begin `uvm_error(get_type_name, "Failed to randomize sequence item") end
 		finish_item(req);
 
 		req = req_item::type_id::create("req");
 		start_item(req);
-		if (!req.randomize() with {rst_n==1; addr_i==MODE2_OFFSET;}) begin `uvm_error(get_type_name, "Failed to randomize sequence item") end
+		if (!req.randomize() with {rst_n==1; addr_i==MODE2_OFFSET; we==1; re==0;}) begin `uvm_error(get_type_name, "Failed to randomize sequence item") end
 		finish_item(req);
         endtask
 endclass: config_seq

@@ -1,4 +1,4 @@
-class drv #(int DATA_WIDTH=32, int ADDR_WIDTH=16) extends uvm_driver;
+class drv #(int DATA_WIDTH=32, int ADDR_WIDTH=16) extends uvm_driver #(req_item);
 	`uvm_component_param_utils(drv#(DATA_WIDTH, ADDR_WIDTH))
 
 	function new(string name="drv", uvm_component parent);

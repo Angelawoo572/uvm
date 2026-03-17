@@ -14,7 +14,7 @@ class mon #(int DATA_WIDTH=32, int ADDR_WIDTH=16) extends uvm_monitor;
 		if (!uvm_config_db #(virtual itf #(.DATA_WIDTH(DATA_WIDTH), .ADDR_WIDTH(ADDR_WIDTH)))::get(null, "tb", "vif", vif))
 			`uvm_fatal(get_type_name(), $sformatf("Virtual interface not found usign name"));
 		`uvm_info (get_type_name (), $sformatf ("end of build phase"), UVM_NONE)
-
+		 m_cov_port = new ("m_cov_port", this);
 	endfunction
 
 	virtual task run_phase(uvm_phase phase);
