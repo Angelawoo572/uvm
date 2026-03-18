@@ -4,26 +4,26 @@ This folder contains the Assembler for this project. The assembler iterates thro
 ## Architectural Overview
 The translation process is divided into five phases:
 
-* Phase 1: Parsing & Analysis
-The engine scans the UVM source code to classify components (such as uvm_driver, uvm_monitor, and uvm_sequencer). During this phase, it builds a comprehensive Symbol Table that maps classes, methods, and interfaces, providing the necessary context for subsequent structural elaboration.
+* Phase 1 (Parsing & Analysis)
+  Scans the UVM source code to classify components and build a symbol table of classes, methods, and interfaces. [this part is kind of overlapping with parser]
+* Phase 2 (Virtual Elaboration)
+  Traverses the `build_phase` methods in the AST tree to unroll the instantiated virtual components.
+* Phase 3 (Connectivity Analysis)
+  Propagates virtual interfaces and generates the structural netlist wiring needed to connect containers like drivers and sequencers.
+* Phase 4 (Behavioral Synthesis)
+  Translates the sequential software tasks of the `run_phase` into equivalent hardware FSMs.
+* Phase 5 (Code Generation)
+  Traverses the fully elaborated and synthesized data structures to emit the final synthesizable SV.
 
-* Phase 2: Virtual Elaboration
-The assembler traverses the build_phase methods within the AST. This step "unrolls" the hierarchy by identifying instantiated virtual components and mapping the parent-child relationships inherent in the UVM testbench.
-
-* Phase 3: Connectivity Analysis
-To bridge the gap between software abstraction and hardware reality, this phase:
-
-Propagates virtual interfaces throughout the environment.
-
-Generates the structural netlist wiring required to physically connect containers (e.g., connecting a sequencer to a driver).
-
-* Phase 4: Behavioral Synthesis
-This is the core translation logic where sequential software execution meets hardware concurrency. The assembler translates the procedural tasks of the run_phase into equivalent Hardware Finite State Machines (FSMs) capable of running on an FPGA or ASIC.
-
-* Phase 5: Code Generation
-In the final stage, the engine traverses the fully elaborated and synthesized data structures to emit the final, synthesizable SystemVerilog (.sv) files. This includes the logic for individual components and the top-level wrapper that binds the system together.
-
+## Flowchart Diagram of logic
+1. phase 1 Diagram
+  <img src="./diagrams/phase1_diagram.png" alt="phase 1 diagram" width="500">
+2. phase 2 Diagram
+  <img src="./diagrams/phase2_diagram.png" alt="phase 1 diagram" width="500">
+3. phase 3 Diagram
+  <img src="./diagrams/phase3_diagram.png" alt="phase 1 diagram" width="500">
+  
 ## Usage
-
-Bash
+```bash
 python3 assemble.py --input path/to/uvm_src --output path/to/sv_out
+```
