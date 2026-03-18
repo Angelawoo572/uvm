@@ -1,3 +1,5 @@
+// TODO: Way to optimize less clock cycles?
+// TODO: Python generation for everything
 /* @Brief Datapath/FSM for constraint solver. 
 Solves constraints in two clock cycles. Outputs are registered*/
 module stimuli_fsm (

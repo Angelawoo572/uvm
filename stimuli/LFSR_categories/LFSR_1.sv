@@ -1,210 +1,113 @@
 `default_nettype none
-`include "../brendan_work/seq_stim_if.svh"
-/*
- * M1 handles general interval constraints of the form addr inside [lo:hi].
-   It generates values directly inside the legal interval in a seed-dependent 
-    bounded traversal order.
-   The original whiteboard example can be viewed as a small instance 
-   such as [1:8], which is a better demonstration case 
-   because the larger domain makes the pseudo-random traversal more visible.
- */
 
-module stimuli_fsm_method1 (
-    seq_stim_if.STIM stim_if
+// Method 1:
+// Synthesizable RTL for: addr inside [A:3]
+// Generalize it to addr inside [lo:hi].
+// Intended constraint is exactly [1:3], tie lo=1, hi=3.
+
+module method1_inside_range #(
+    parameter int W = 4
+) (
+    input  logic         clk,
+    input  logic         rst_n,
+    input  logic         enable,
+    input  logic [W-1:0] seed,
+    input  logic         seed_load,
+
+    input  logic [W-1:0] lo,
+    input  logic [W-1:0] hi,
+
+    output logic [W-1:0] addr,
+    output logic         valid,
+    output logic [W-1:0] diff
 );
-    localparam int DATA_W = stim_if.DATA_W;
-    localparam int GCD_ITERS = 2*DATA_W;
-    localparam int STRIDE_SEARCH = 64;
 
-    typedef enum logic [0:0] {IDLE, RESP} state_t;
-    state_t state;
+    logic [W-1:0] lfsr_state, lfsr_next;
+    logic         feedback;
 
-    logic [DATA_W-1:0] seed_reg;
-    logic [DATA_W-1:0] lo_reg, hi_reg;
-    logic [DATA_W-1:0] range_size;
-    logic [DATA_W-1:0] idx;
-    logic [DATA_W-1:0] offset;
-    logic [DATA_W-1:0] stride;
-    logic [DATA_W-1:0] perm_idx;
+    // Simple LFSR taps for small demo widths
+    assign feedback  = lfsr_state[W-1] ^ lfsr_state[1];
+    assign lfsr_next = {lfsr_state[W-2:0], feedback};
 
-    function automatic logic [DATA_W-1:0] gcd_func(
-        input logic [DATA_W-1:0] a,
-        input logic [DATA_W-1:0] b
-    );
-        logic [DATA_W-1:0] x, y, t;
-        int i;
-        begin
-            x = a;
-            y = b;
-            for (i = 0; i < GCD_ITERS; i++) begin
-                if (y != 0) begin
-                    t = x % y;
-                    x = y;
-                    y = t;
-                end
-            end
-            gcd_func = x;
-        end
-    endfunction
-
-    function automatic logic [DATA_W-1:0] choose_stride(
-        input logic [DATA_W-1:0] seed_val,
-        input logic [DATA_W-1:0] n
-    );
-        logic [DATA_W-1:0] cand;
-        logic [DATA_W-1:0] best;
-        logic found;
-        int i;
-        begin
-            if (n <= 1) begin
-                choose_stride = 0;
-            end else begin
-                best  = 1;
-                found = 1'b0;
-                for (i = 0; i < STRIDE_SEARCH; i++) begin
-                    cand = 1 + ((seed_val + i) % (n - 1));
-                    if (!found && (gcd_func(cand, n) == 1)) begin
-                        best  = cand;
-                        found = 1'b1;
-                    end
-                end
-                choose_stride = best;
-            end
-        end
-    endfunction
-
-    assign range_size = (hi_reg >= lo_reg) ? (hi_reg - lo_reg + 1'b1) : '0;
-
-    always_comb begin
-        if (range_size != 0)
-            perm_idx = (offset + ((stride * idx) % range_size)) % range_size;
-        else
-            perm_idx = '0;
-    end
-
-    assign stim_if.solved_data = lo_reg + perm_idx;
-    assign stim_if.req_ready   = (state == IDLE);
-    assign stim_if.rsp_valid   = (state == RESP);
-
-    always_ff @(posedge stim_if.clk or negedge stim_if.rst_n) begin
-        if (!stim_if.rst_n) begin
-            state    <= IDLE;
-            seed_reg <= 'h1;
-            lo_reg   <= '0;
-            hi_reg   <= '0;
-            idx      <= '0;
-            offset   <= '0;
-            stride   <= '0;
-        end else begin
-            case (state)
-                IDLE: begin
-                    if (stim_if.req_seed_load)
-                        seed_reg <= (stim_if.seed == '0) ? 'h1 : stim_if.seed;
-
-                    if (stim_if.req_valid) begin
-                        lo_reg <= stim_if.lower_bound;
-                        hi_reg <= stim_if.upper_bound;
-
-                        if (stim_if.upper_bound >= stim_if.lower_bound) begin
-                            logic [DATA_W-1:0] n;
-                            n = stim_if.upper_bound - stim_if.lower_bound + 1'b1;
-                            offset <= seed_reg % n;
-                            stride <= choose_stride(seed_reg, n);
-                        end else begin
-                            offset <= '0;
-                            stride <= '0;
-                        end
-
-                        state <= RESP;
-                    end
-                end
-
-                RESP: begin
-                    if (stim_if.rsp_ready) begin
-                        if (range_size != 0) begin
-                            if (idx == range_size - 1'b1)
-                                idx <= '0;
-                            else
-                                idx <= idx + 1'b1;
-                        end
-                        state <= IDLE;
-                    end
-                end
-            endcase
+    // Sequential candidate generator
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            lfsr_state <= 'h1;
+        end else if (seed_load) begin
+            lfsr_state <= (seed == '0) ? 'h1 : seed;
+        end else if (enable) begin
+            lfsr_state <= lfsr_next;
         end
     end
-endmodule : stimuli_fsm_method1
 
-module tb_method1;
-    localparam int DATA_W = 32;
-    localparam int NUM_CONSTRAINTS = 4;
+    // Candidate value
+    assign addr = lfsr_state;
 
-    logic clk, rst_n;
-    seq_stim_if #(
-        .DATA_W(DATA_W),
-        .NUM_CONSTRAINTS(NUM_CONSTRAINTS)
-    ) stim_if (
+    // Constraint check: addr inside [lo:hi]
+    assign valid = (addr >= lo) && (addr <= hi);
+
+    // Whiteboard had: B - A = diff
+    assign diff = addr - lo;
+
+endmodule: method1_inside_range
+
+// ============================================================
+// TB for method 1
+// ============================================================
+module tb_method1_inside_range;
+
+    localparam int W = 4;
+
+    logic         clk;
+    logic         rst_n;
+    logic         enable;
+    logic [W-1:0] seed;
+    logic         seed_load;
+    logic [W-1:0] lo, hi;
+    logic [W-1:0] addr;
+    logic         valid;
+    logic [W-1:0] diff;
+
+    method1_inside_range #(.W(W)) dut (
         .clk(clk),
-        .rst_n(rst_n)
+        .rst_n(rst_n),
+        .enable(enable),
+        .seed(seed),
+        .seed_load(seed_load),
+        .lo(lo),
+        .hi(hi),
+        .addr(addr),
+        .valid(valid),
+        .diff(diff)
     );
-
-    stimuli_fsm_method1 dut (.stim_if(stim_if));
 
     always #5 clk = ~clk;
 
-    task automatic reset();
-        rst_n = 0;
-        stim_if.req_seed_load = 0;
-        stim_if.req_valid     = 0;
-        stim_if.rsp_ready     = 0;
-        stim_if.seed          = '0;
-        stim_if.lower_bound   = '0;
-        stim_if.upper_bound   = '0;
-        stim_if.constraint_id = 32'd1;
-        repeat (2) @(posedge clk);
-        rst_n = 1;
-    endtask
-
-    task automatic load_seed(input logic [DATA_W-1:0] s);
-        @(posedge clk);
-        stim_if.seed          <= s;
-        stim_if.req_seed_load <= 1'b1;
-        @(posedge clk);
-        stim_if.req_seed_load <= 1'b0;
-    endtask
-
-    task automatic request_range(
-        input logic [DATA_W-1:0] lo,
-        input logic [DATA_W-1:0] hi
-    );
-        wait(stim_if.req_ready);
-        @(posedge clk);
-        stim_if.lower_bound <= lo;
-        stim_if.upper_bound <= hi;
-        stim_if.req_valid   <= 1'b1;
-        stim_if.rsp_ready   <= 1'b1;
-
-        @(posedge clk);
-        stim_if.req_valid <= 1'b0;
-
-        wait(stim_if.rsp_valid);
-        @(posedge clk);
-        $display("[M1] solved_data=%0d range=[%0d:%0d]", stim_if.solved_data, lo, hi);
-        if (!((stim_if.solved_data >= lo) && (stim_if.solved_data <= hi))) begin
-            $display("ERROR: method1 output out of range");
-            $finish;
-        end
-        stim_if.rsp_ready <= 1'b0;
-    endtask
-
     initial begin
         clk = 0;
-        reset();
-        load_seed(32'd5);
+        rst_n = 0;
+        enable = 0;
+        seed = 4'd5;
+        seed_load = 0;
+        lo = 4'd1;   // corresponds to [1:3]
+        hi = 4'd3;
 
-        repeat (8) request_range(32'd1, 32'd8);
+        #12;
+        rst_n = 1;
 
-        #20;
+        #10;
+        seed_load = 1;
+        #10;
+        seed_load = 0;
+        enable = 1;
+
+        repeat (12) begin
+            @(posedge clk);
+            $display("[M1] t=%0t addr=%0d valid=%0b diff=%0d  range=[%0d:%0d]",
+                     $time, addr, valid, diff, lo, hi);
+        end
+
         $finish;
     end
-endmodule : tb_method1
+
+endmodule: tb_method1_inside_range

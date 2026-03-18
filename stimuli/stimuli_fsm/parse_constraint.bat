@@ -1,0 +1,1 @@
+uv run ..\..\parser\parse_seq_item.py ..\..\uvm_samples\stress\example1-basic\seq.svh --out ..\..\test.txt
