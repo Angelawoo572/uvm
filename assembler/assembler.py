@@ -68,7 +68,7 @@ class Classifier:
         
         # 2. Check for Interface Declarations (Rule 2 Support)
         elif node.kind == SyntaxKind.InterfaceDeclaration:
-            self._ingest_interface(node)
+            self._analyze_interface(node)
 
         # Recursively visit children
         if hasattr(node, 'members'):
@@ -107,7 +107,7 @@ class Classifier:
         elif "uvm_sequence_item" in base_name:
             self.registry.seq_items[class_name] = node
     
-    def _ingest_interface(self, node):
+    def _analyze_interface(self, node):
         """
         Parses an interface to find signals and modports for later 'Port Explosion'.
         NOW COMPLETE: Extracting input/output directions from modports.
@@ -151,31 +151,6 @@ class Classifier:
                         # Store the mapping: Signal Name -> Direction
                         self.registry.interfaces[if_name]['modports'][modport_name][port_name] = current_direction
 
-    def _ingest_interface(self, node):
-        """
-        Parses an interface to find signals and modports for later 'Port Explosion'.
-        """
-        if_name = node.header.name.value
-        self.registry.interfaces[if_name] = {'signals': [], 'modports': {}}
-
-        # Walk interface members
-        for member in node.members:
-            # Detect Signals (DataDeclaration)
-            if member.kind == SyntaxKind.DataDeclaration:
-                # Iterate variables in the declaration (e.g., logic a, b, c)
-                for decl in member.declarators:
-                    sig_name = decl.name.value
-                    # Note: Getting the full type (logic [3:0]) requires deeper parsing
-                    # For now, we store the name to prove we found it.
-                    self.registry.interfaces[if_name]['signals'].append(sig_name)
-            
-            # Detect Modports
-            elif member.kind == SyntaxKind.ModportDeclaration:
-                for item in member.items:
-                    modport_name = item.name.value
-                    self.registry.interfaces[if_name]['modports'][modport_name] = []
-                    # You would iterate item.ports here to get directions (input/output)
-
     def _get_type_name(self, type_node):
         """
         Robustly extracts the string name of a type, handling parameters.
@@ -198,7 +173,7 @@ class Classifier:
     
 
 # --- Phase 2 ---
-class Builder:
+class Elaborator:
     """
     Performs 'Virtual Elaboration' by traversing build_phase() tasks.
     """
@@ -206,14 +181,14 @@ class Builder:
         self.registry = registry
         self.root_node = None
 
-    def build(self, root_class_name):
+    def elaborate(self, root_class_name):
         """
         Main entry point. Starts elaboration from the top Test class.
         """
         print(f"Starting Virtual Elaboration at root: {root_class_name}")
         self.root_node = HierarchyNode("uvm_test_top", root_class_name)
         
-        # Recursive build
+        # Recursive elaborate
         self._elaborate_node(self.root_node)
         return self.root_node
 
@@ -385,7 +360,7 @@ class RTLModuleDefinition:
 
 # --- Phase 3 Logic ---
 
-class Connector:
+class NetlistBuilder:
     def __init__(self, registry, hierarchy_root):
         self.registry = registry
         self.root = hierarchy_root
@@ -1034,7 +1009,7 @@ class Synthesizer:
 
 
 # Part 5
-class Assembler:
+class RTLGenerator:
     def __init__(self, rtl_modules, hierarchy_root, registry):
         self.modules = rtl_modules
         self.root = hierarchy_root
@@ -1271,12 +1246,12 @@ registry = classifier.run()
 registry.summary()
 
 # Part 2
-builder = Builder(registry)
+elaborator = Elaborator(registry)
 
 # 2. Run Virtual Elaboration
 # We know 'alu_test' is the root because it extends uvm_test
 root_type = list(registry.tests.keys())[0] # e.g., "alu_test"
-hierarchy_root = builder.build(root_type)
+hierarchy_root = elaborator.elaborate(root_type)
 
 # 3. Visualize
 print("\n--- Virtual Elaboration Tree ---")
@@ -1284,8 +1259,8 @@ hierarchy_root.print_tree()
 
 
 # Part 3
-connector = Connector(registry, hierarchy_root)
-rtl_modules = connector.run()
+netlist_builder = NetlistBuilder(registry, hierarchy_root)
+rtl_modules = netlist_builder.run()
 
 # Output Results
 print("\n--- Synthesized RTL Interfaces ---")
@@ -1299,5 +1274,5 @@ for mod_name, mod_def in rtl_modules.items():
 # Part 4 runs inside phase 5
 
 # Part 5
-assembler = Assembler(rtl_modules, hierarchy_root, registry)
-assembler.run()
+rtl_generator = RTLGenerator(rtl_modules, hierarchy_root, registry)
+rtl_generator.run()
