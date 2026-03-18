@@ -57,6 +57,10 @@ def main(
             continue # skip lines without constraint
         content.append(generate_constraint(constraint_type, line))
     
+    if not content:
+        print("No valid constraints found in the file.")
+        return
+        
     try:
         with open(output_filename, "w") as f:
             f.write("\n".join(content))
