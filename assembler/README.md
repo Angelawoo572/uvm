@@ -16,13 +16,35 @@ The translation process is divided into five phases:
   Traverses the fully elaborated and synthesized data structures to emit the final synthesizable SV.
 
 ## Flowchart Diagram of logic
-1. phase 1 Diagram
+1. phase 1 Flowchart
   <img src="./diagrams/phase1_diagram.png" alt="phase 1 diagram" width="500">
-2. phase 2 Diagram
+2. phase 2 Flowchart
   <img src="./diagrams/phase2_diagram.png" alt="phase 1 diagram" width="500">
-3. phase 3 Diagram
+3. phase 3 Flowchart
   <img src="./diagrams/phase3_diagram.png" alt="phase 1 diagram" width="500">
-  
+4. phase 4 Flowchart
+
+  Currently the Sequence FSM is not using token manager and is doing next seq_item -> next seq_item -> ...,
+  and I hardcoded Sequence FSM to have the following states, assuming DUT takes 1 clock cycle:
+
+  ```sv
+  typedef enum logic [3:0] {
+        S_RESET, 
+        S_ENTRY, 
+        S_LOOP_HEAD, 
+        S_REQ_ITEM, 
+        S_WAIT_RSP, 
+        S_GOT_ITEM, 
+        S_DRIVE_START, 
+        S_DRIVE_END, 
+        S_WAIT_DONE
+      } state_t;
+  ```
+
+  <img src="./diagrams/phase4_diagram.png" alt="phase 4 diagram" width="800">
+5. phase 5 Flowchart
+  <img src="./diagrams/phase5_diagram.png" alt="phase 5 diagram" width="800">
+
 ## Usage
 ```bash
 python3 assemble.py --input path/to/uvm_src --output path/to/sv_out
