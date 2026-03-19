@@ -8,7 +8,7 @@ _BIT_SLICE_RE = re.compile(
 )
 
 
-def generate_bit_slice(constraint_line: str, total_width: int = 32) -> str:
+def generate_bit_slice(constraint_line: str, lfsr_width: int = 32) -> str:
     """Generate a bit-slice module from an expression like `data[7:4] != 4'b1111`."""
     line = re.sub(r"//.*", "", constraint_line).strip()
     match = _BIT_SLICE_RE.match(line)
@@ -31,13 +31,13 @@ def generate_bit_slice(constraint_line: str, total_width: int = 32) -> str:
 
     rtl: list[str] = []
     rtl.append(f"module {module_name} (")
-    rtl.append(f"    input  logic [{total_width-1}:0] lfsr_in,")
-    rtl.append(f"    output logic [{total_width-1}:0] {var_name}")
+    rtl.append(f"    input  logic [{lfsr_width-1}:0] lfsr_in,")
+    rtl.append(f"    output logic [{lfsr_width-1}:0] {var_name}")
     rtl.append(");")
     rtl.append("")
 
-    if msb < total_width - 1:
-        rtl.append(f"    assign {var_name}[{total_width-1}:{msb+1}] = lfsr_in[{total_width-1}:{msb+1}];")
+    if msb < lfsr_width - 1:
+        rtl.append(f"    assign {var_name}[{lfsr_width-1}:{msb+1}] = lfsr_in[{lfsr_width-1}:{msb+1}];")
 
     if op == "==":
         rtl.append(f"    assign {var_name}[{msb}:{lsb}] = {value};")

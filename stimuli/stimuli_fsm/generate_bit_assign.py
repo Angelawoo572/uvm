@@ -8,7 +8,7 @@ _BIT_ASSIGN_RE = re.compile(
 )
 
 
-def generate_bit_assign(constraint_line: str, total_width: int = 32) -> str:
+def generate_bit_assign(constraint_line: str, lfsr_width: int = 32) -> str:
     """Generate a bit-assign module from an expression like `data[0] == 1'b1`."""
     line = re.sub(r"//.*", "", constraint_line).strip()
     match = _BIT_ASSIGN_RE.match(line)
@@ -24,13 +24,13 @@ def generate_bit_assign(constraint_line: str, total_width: int = 32) -> str:
 
     rtl: list[str] = []
     rtl.append(f"module {module_name} (")
-    rtl.append(f"    input  logic [{total_width-1}:0] lfsr_in,")
-    rtl.append(f"    output logic [{total_width-1}:0] {var_name}")
+    rtl.append(f"    input  logic [{lfsr_width-1}:0] lfsr_in,")
+    rtl.append(f"    output logic [{lfsr_width-1}:0] {var_name}")
     rtl.append(");")
     rtl.append("")
 
-    if bit < total_width - 1:
-        rtl.append(f"    assign {var_name}[{total_width-1}:{bit+1}] = lfsr_in[{total_width-1}:{bit+1}];")
+    if bit < lfsr_width - 1:
+        rtl.append(f"    assign {var_name}[{lfsr_width-1}:{bit+1}] = lfsr_in[{lfsr_width-1}:{bit+1}];")
 
     if op == "==":
         rtl.append(f"    assign {var_name}[{bit}] = {value};")
