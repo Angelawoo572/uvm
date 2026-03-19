@@ -8,7 +8,7 @@ import math
 
 # TODO features
 # - ignored bins
-# 
+# - flatten array in cross coverage
 
 # TODO - update outputs correctly in cg
 
@@ -81,13 +81,13 @@ class VerilogModule:
         lines.append("endmodule\n")
         return "\n".join(lines)
 
-def generate_cross(cross_data, cg_data, counter_width=4):
-    ref = cross_data['reference']
-    mod = VerilogModule(ref)
-    # Name and header
-    mod.add_line("")
-    mod.add_line(f"// Cross coverage {ref}")
-    # grab the coverpoints
+# computes the bins of interest given a set of coverpoints
+def prune_cross_bins():
+    return
+
+# TODO clean up code by making more functions
+# Returns reference to all cp in cross
+def get_covp(cross_data, cg_data):
     saved_covp = []
     for covp in cross_data['coverpoints']:
         cur = next(
@@ -97,6 +97,9 @@ def generate_cross(cross_data, cg_data, counter_width=4):
         if (cur == None):
             print("No matching coverpoint found")
         saved_covp.append(cur)
+    return saved_covp
+
+def gen_hierarchy_cross(ref, mod, saved_covp, counter_width=4):
     # Internal signals
     # Create an index for each cross point
     signal = ""
@@ -111,8 +114,12 @@ def generate_cross(cross_data, cg_data, counter_width=4):
     mod.add_line(f"logic [{counter_width-1}:0] {ref}_ctr_n {signal}")
     mod.add_line(f"logic {ref}_illegal_error")
 
-    # Assign outputs TODO
-    # mod.add_line(f"assign {ref}_cnt = ctr_r;")
+    # Assign outputs
+    for idx, covp in enumerate(saved_covp):
+        for idy, bin in enumerate(covp.get('bins')):
+            out_name = f"{ref}_{idx}{idy}_cnt"
+            mod.add_line(f"assign {out_name} = {ref}_ctr_r[{idx}][{idy}]")
+            mod.add_output(out_name, counter_width)
 
     # Combinational Logic (Bin Mapping)
     mod.add_line("")
@@ -133,6 +140,21 @@ def generate_cross(cross_data, cg_data, counter_width=4):
     mod.add_line(f"        {ref}_ctr_r <= {ref}_ctr_n;")
     mod.add_line("    end")
     mod.add_line("end")
+
+# creates code for cross coverage
+# lives within a covergroup
+def generate_cross(cross_data, cg_data, counter_width=4):
+    ref = cross_data['reference']
+    mod = VerilogModule(ref)
+
+    # Name and header
+    mod.add_line("")
+    mod.add_line(f"// Cross coverage {ref}")
+
+    # Get reference to coverpoints
+    saved_covp = get_covp(cross_data, cg_data)
+
+    gen_hierarchy_cross(ref, mod, saved_covp)
 
     return mod
 
@@ -241,6 +263,10 @@ def generate_covergroup(cg_data):
 
         for line in cross_mod.body:
             mod.add_line(line)
+
+        # bubble up outputs (prefix with instance name)
+        for name, width in cross_mod.outputs.items():
+            mod.add_output(f"{name}", width)
 
     return mod
 
