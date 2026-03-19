@@ -2,6 +2,7 @@ import json
 import argparse
 import sys
 import math
+import itertools
 
 # Supported features
 # - fixed bins, illegal bins
@@ -85,7 +86,6 @@ class VerilogModule:
 def prune_cross_bins():
     return
 
-# TODO clean up code by making more functions
 # Returns reference to all cp in cross
 def get_covp(cross_data, cg_data):
     saved_covp = []
@@ -141,6 +141,73 @@ def gen_hierarchy_cross(ref, mod, saved_covp, counter_width=4):
     mod.add_line("    end")
     mod.add_line("end")
 
+def gen_flat_cross(ref, mod, saved_covp, counter_width=4):
+    # Calculate the total number of bins by multiplying the lengths of all bins
+    bin_counts = [len(covp.get('bins')) for covp in saved_covp]
+    total_bins = math.prod(bin_counts) if bin_counts else 0
+    
+    # Generate the concatenated signal string, e.g., "{cp1_idx, cp2_idx}"
+    covp_refs = [covp.get('reference') for covp in saved_covp]
+    concat_sig = "{" + ", ".join(covp_refs) + "}"
+    
+    # Internal signals (Flattened unpacked arrays)
+    mod.add_line(f"// Flattened Bin Counters for {ref}")
+    mod.add_line(f"logic [{counter_width-1}:0] {ref}_ctr_r [0:{total_bins-1}];")
+    mod.add_line(f"logic [{counter_width-1}:0] {ref}_ctr_n [0:{total_bins-1}];")
+    mod.add_line(f"logic {ref}_illegal_error;")
+
+    # Generate all index combinations
+    ranges = [range(n) for n in bin_counts]
+    all_combinations = list(itertools.product(*ranges))
+
+    # Assign outputs mapped from the flat array
+    mod.add_line("")
+    for flat_idx, combo in enumerate(all_combinations):
+        # Create a string of the indices like "01"
+        combo_str = "".join(map(str, combo))
+        out_name = f"{ref}_{combo_str}_cnt"
+        mod.add_line(f"assign {out_name} = {ref}_ctr_r[{flat_idx}];")
+        mod.add_output(out_name, counter_width)
+
+    # Combinational Logic (Bin Mapping via Case Statement)
+    mod.add_line("")
+    mod.add_line("always_comb begin")
+    mod.add_line("    // Default: Hold all values, no error")
+    mod.add_line(f"    {ref}_ctr_n = {ref}_ctr_r; // Bulk unpacked array assignment")
+    mod.add_line(f"    {ref}_illegal_error = 0;")
+    mod.add_line("")
+    mod.add_line(f"    if (sample) begin")
+    mod.add_line(f"        case ({concat_sig})")
+    
+    for flat_idx, combo in enumerate(all_combinations):
+        # Build the bit-width specific case condition (e.g., {2'd0, 2'd1})
+        case_cond_parts = []
+        for cp_idx, val in enumerate(combo):
+            num_bins = len(saved_covp[cp_idx].get('bins'))
+            # Ensure bin_width is at least 1, even if num_bins is 1
+            bin_width = max(1, math.ceil(math.log2(num_bins))) 
+            case_cond_parts.append(f"{bin_width}'d{val}")
+        
+        case_cond_str = "{" + ", ".join(case_cond_parts) + "}"
+        mod.add_line(f"            {case_cond_str}: {ref}_ctr_n[{flat_idx}] = {ref}_ctr_r[{flat_idx}] + 1;")
+        
+    mod.add_line("            default: begin")
+    mod.add_line(f"                {ref}_illegal_error = 1;")
+    mod.add_line("            end")
+    mod.add_line("        endcase")
+    mod.add_line("    end")
+    mod.add_line("end")
+
+    # Sequential Logic
+    mod.add_line("")
+    mod.add_line("always_ff @(posedge clk or negedge rst_n) begin")
+    mod.add_line("    if (!rst_n) begin")
+    mod.add_line(f"        {ref}_ctr_r <= '{{default:0}};")
+    mod.add_line("    end else if (sample) begin")
+    mod.add_line(f"        {ref}_ctr_r <= {ref}_ctr_n;")
+    mod.add_line("    end")
+    mod.add_line("end")
+
 # creates code for cross coverage
 # lives within a covergroup
 def generate_cross(cross_data, cg_data, counter_width=4):
@@ -154,7 +221,8 @@ def generate_cross(cross_data, cg_data, counter_width=4):
     # Get reference to coverpoints
     saved_covp = get_covp(cross_data, cg_data)
 
-    gen_hierarchy_cross(ref, mod, saved_covp)
+    # gen_hierarchy_cross(ref, mod, saved_covp)
+    gen_flat_cross(ref, mod, saved_covp)
 
     return mod
 
