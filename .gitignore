@@ -7,6 +7,7 @@ __pycache__/
 # Brendan's files
 notes.md
 old-workflow.md
+test/
 
 # Prerequisites
 *.d

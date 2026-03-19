@@ -27,14 +27,19 @@ def main(
     content = []
     for line in lines:
         line = re.sub(r'//.*', '', line).strip() # remove comments
+        if not line:
+            continue # skip empty lines
+
         constraint_type = identify_constraint(line) # should return str
+        # print(constraint_type)
         if not constraint_type:
             continue # skip lines without constraint
-        content.append(generate_constraint(constraint_type, line)) # content could be tuple (module name, RTL)
-    
+
+        content.append(generate_constraint(constraint_type, line, output_directory)) # content could be tuple 
+                                                                   # ("module name", "module rtl", "lower_bound, upper_bound")
     if not content:
         print("No valid constraints found in the file.")
-        return
+        return # skip if no constraints
     
     # List of files
     files_to_copy = [
@@ -46,7 +51,7 @@ def main(
     files_to_modify = [
         "constraint_solver.sv"
     ]
-
+    return
     
     
 if __name__ == "__main__":
