@@ -4,12 +4,12 @@ class cov extends uvm_subscriber #(full_item);
 	`include "constants.svh"
 
 	// handle for the item received from the monitor
-	full_item m_item;
+	full_item item;
 
 	// Covergroup for the addresses
 	covergroup opcodes_cg;
 		option.per_instance = 1 ;
-		coverpoint full_item.addr_i {
+		coverpoint item.req.addr_i {
 			bins MODE0 = MODE0_OFFSET;
 			bins MODE1 = MODE1_OFFSET;
 			bins MODE2 = MODE2_OFFSET;
@@ -23,7 +23,7 @@ class cov extends uvm_subscriber #(full_item);
 	endfunction
 
 	function void write(full_item t); // must be named "t", because write() is a pure function that already has t name
-		this.m_item = t;
+		this.item = t;
 		opcodes_cg.sample(); // sample could be conditional
 	endfunction
 endclass

@@ -16,13 +16,13 @@ interface itf (input bit clk);
 	clocking drv_cb @(posedge clk);
 		default input #1step output #1;
 		output rst_n, re, we, addr_i, data_i; 
-		input data_o;
+		input data_o, valid;
 	endclocking
 
 	clocking mon_cb @(posedge clk);
 		default input #1step output #1;
 		input rst_n, re, we, addr_i, data_i; 
-		input data_o;
+		input data_o, valid;
 	endclocking
 endinterface
 

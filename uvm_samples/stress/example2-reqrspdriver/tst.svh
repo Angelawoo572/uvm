@@ -1,7 +1,7 @@
-class example1basic extends uvm_test;
-        `uvm_component_utils (example1basic)
+class example2 extends uvm_test;
+        `uvm_component_utils (example2)
 
-        function new (string name = "example1basic", uvm_component parent = null);
+        function new (string name = "example2", uvm_component parent = null);
                 super.new (name, parent);
         endfunction
 
@@ -14,7 +14,7 @@ class example1basic extends uvm_test;
         endfunction
 
         virtual task run_phase (uvm_phase phase);
-                config_seq m_seq = config_seq::type_id::create ("m_seq");
+                reset_then_config_vseq m_seq = reset_then_config_vseq::type_id::create ("m_seq");
 
                 phase.phase_done.set_drain_time(this, 20ns); // this makes sure simulation keeps running for another 20 time units past the last sequence
 		
@@ -24,5 +24,5 @@ class example1basic extends uvm_test;
                 m_seq.start(m_env.m_agt.m_sqr);
                 phase.drop_objection (this);
         endtask
-endclass
+endclass : example2
 

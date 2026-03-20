@@ -1,9 +1,9 @@
-class mon #(int DATA_WIDTH=32, int ADDR_WIDTH=16, int ARRAY_SIZE) extends uvm_monitor;
-	`uvm_component_utils(mon)
-
+class mon #(int DATA_WIDTH=32, int ADDR_WIDTH=16, int ARRAY_SIZE=8) extends uvm_monitor;
+	`uvm_component_param_utils(mon#(DATA_WIDTH, ADDR_WIDTH, ARRAY_SIZE))
+	
 	function new(string name="mon", uvm_component parent=null);
 		super.new(name, parent);
-	endfunction
+	endfunction : new
 
 	virtual itf #(.DATA_WIDTH(DATA_WIDTH), .ADDR_WIDTH(ADDR_WIDTH), .ARRAY_SIZE(ARRAY_SIZE)) vif;
         uvm_analysis_port #(full_item) m_cov_port;
@@ -23,17 +23,14 @@ class mon #(int DATA_WIDTH=32, int ADDR_WIDTH=16, int ARRAY_SIZE) extends uvm_mo
 		// transaction and writes into analysis port when complete
 		forever begin
 			@ (vif.mon_cb);
-			if (vif.rst_n) begin
+			if (vif.mon_cb.rst_n) begin
 				full_item item = full_item::type_id::create("item");
-				// TODO
-				//req.rst_n = vif.rst_n;
-				//req.re = vif.re;
-				//req.we = vif.we;
-				//req.addr_i = vif.addr_i;
-				//req.data_i = vif.data_i;
-				//req.data_o = vif.data_o;
+				// TODO the current code does not associate
+				// the right request with the right response
+				// this is fixed in the monitor stress test
 				m_cov_port.write(item);
 			end
+
 		end
 	endtask
 
