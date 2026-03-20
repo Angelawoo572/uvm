@@ -1,5 +1,6 @@
 # Code samples
-Extracted from [UVM Cookbook](https://verificationacademy.com/cookbook/uvm-universal-verification-methodology/code-examples/). Refer to the link for more in-depth descriptions.
+There are two categories of code samples. The ones provided in the stress folder are built by us and each of them has a specific stress nature. 
+The other examples, provided in multiple folders in this location, are extracted from the [UVM Cookbook](https://verificationacademy.com/cookbook/uvm-universal-verification-methodology/code-examples/). Refer to the link for more in-depth descriptions.
 
 ## Testbench connection examples
 1. [Virtual interface using uvm_config_db](./uvm_vif_config_db)
