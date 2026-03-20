@@ -1,7 +1,7 @@
 `default_nettype none
 `include "../brendan_work/seq_stim_if.svh"
 
-module stimuli_fsm_method1 (
+module stimuli_fsm_method2 (
     seq_stim_if.STIM stim_if
 );
     localparam int DATA_W = stim_if.DATA_W;
@@ -9,13 +9,15 @@ module stimuli_fsm_method1 (
     typedef enum logic [0:0] {IDLE, RESP} state_t;
     state_t state;
 
-    logic [DATA_W-1:0] seed_reg;
     logic [DATA_W-1:0] lo_reg, hi_reg;
+    logic [DATA_W-1:0] seed_reg;
     logic [DATA_W-1:0] range_size;
     logic [DATA_W-1:0] idx, offset;
     logic [DATA_W-1:0] perm_idx;
 
-    assign range_size = (hi_reg >= lo_reg) ? (hi_reg - lo_reg + 1'b1) : '0;
+    // Exclusive bounds:
+    // lower_bound < addr < upper_bound
+    assign range_size = (hi_reg > lo_reg + 1'b1) ? (hi_reg - lo_reg - 1'b1) : '0;
 
     always_comb begin
         perm_idx = idx + offset;
@@ -23,16 +25,16 @@ module stimuli_fsm_method1 (
             perm_idx = perm_idx - range_size;
     end
 
-    assign stim_if.solved_data = lo_reg + perm_idx;
+    assign stim_if.solved_data = (lo_reg + 1'b1) + perm_idx;
     assign stim_if.req_ready   = (state == IDLE);
     assign stim_if.rsp_valid   = (state == RESP);
 
-    always_ff @(posedge stim_if.clk, negedge stim_if.rst_n) begin
+    always_ff @(posedge stim_if.clk or negedge stim_if.rst_n) begin
         if (!stim_if.rst_n) begin
             state    <= IDLE;
-            seed_reg <= 'h1;
             lo_reg   <= '0;
             hi_reg   <= '0;
+            seed_reg <= 'h1;
             idx      <= '0;
             offset   <= '0;
         end else begin
@@ -44,10 +46,9 @@ module stimuli_fsm_method1 (
                     if (stim_if.req_valid) begin
                         lo_reg <= stim_if.lower_bound;
                         hi_reg <= stim_if.upper_bound;
-                        idx    <= idx; // hold until response consumed
-                        if (stim_if.upper_bound >= stim_if.lower_bound)
+                        if (stim_if.upper_bound > (stim_if.lower_bound + 1'b1))
                             offset <= ((stim_if.seed == '0) ? 'h1 : stim_if.seed) %
-                                      (stim_if.upper_bound - stim_if.lower_bound + 1'b1);
+                                      (stim_if.upper_bound - stim_if.lower_bound - 1'b1);
                         else
                             offset <= '0;
                         state <= RESP;
@@ -56,7 +57,7 @@ module stimuli_fsm_method1 (
 
                 RESP: begin
                     if (stim_if.rsp_ready) begin
-                        if ((hi_reg >= lo_reg) && (range_size != '0)) begin
+                        if (range_size != '0) begin
                             if (idx == (range_size - 1'b1))
                                 idx <= '0;
                             else
@@ -68,9 +69,9 @@ module stimuli_fsm_method1 (
             endcase
         end
     end
-endmodule: stimuli_fsm_method1
+endmodule: stimuli_fsm_method2
 
-module tb_method1;
+module tb_method2;
     localparam int DATA_W = 32;
     localparam int NUM_CONSTRAINTS = 4;
 
@@ -83,7 +84,7 @@ module tb_method1;
         .rst_n(rst_n)
     );
 
-    stimuli_fsm_method1 dut (.stim_if(stim_if));
+    stimuli_fsm_method2 dut (.stim_if(stim_if));
 
     always #5 clk = ~clk;
 
@@ -108,7 +109,7 @@ module tb_method1;
         stim_if.req_seed_load <= 1'b0;
     endtask
 
-    task automatic request_range(
+    task automatic request_exclusive(
         input logic [DATA_W-1:0] lo,
         input logic [DATA_W-1:0] hi
     );
@@ -124,9 +125,9 @@ module tb_method1;
 
         wait(stim_if.rsp_valid);
         @(posedge clk);
-        $display("[M1] solved_data=%0d range=[%0d:%0d]", stim_if.solved_data, lo, hi);
-        if (!((stim_if.solved_data >= lo) && (stim_if.solved_data <= hi))) begin
-            $display("ERROR: method1 output out of range");
+        $display("[M2] solved_data=%0d constraint=(%0d,%0d)", stim_if.solved_data, lo, hi);
+        if (!((stim_if.solved_data > lo) && (stim_if.solved_data < hi))) begin
+            $display("ERROR: method2 output violates exclusive bounds");
             $finish;
         end
         stim_if.rsp_ready <= 1'b0;
@@ -135,11 +136,11 @@ module tb_method1;
     initial begin
         clk = 0;
         reset();
-        load_seed(32'd5);
+        load_seed(32'hACE1);
 
-        repeat (8) request_range(32'd1, 32'd3);
+        repeat (8) request_exclusive(32'd1234, 32'd5555);
 
         #20;
         $finish;
     end
-endmodule: tb_method1
+endmodule: tb_method2
