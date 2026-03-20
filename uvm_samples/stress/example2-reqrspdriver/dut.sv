@@ -11,8 +11,7 @@ logic [DATA_WIDTH-1:0] mode0; // read and write register
 logic [DATA_WIDTH-1:0] mode1; // read and write register
 logic [DATA_WIDTH-1:0] mode2; // read and write register
 logic [DATA_WIDTH-1:0] storage [0:ARRAY_SIZE-1];
-logic [ARRAY_SIZE-1:0] valid;
-
+//logic [ARRAY_SIZE-1:0] valid; // part of itf
 
 always_ff @(posedge clk or negedge rst_n) begin
 	if (rst_n == 1'b0) begin
@@ -20,7 +19,7 @@ always_ff @(posedge clk or negedge rst_n) begin
 		mode1 <= '0;
 		mode2 <= '0;
 		myitf.data_o <= '0;
-		valid <= '0;
+		myitf.valid <= '0;
 	end
 	else begin
 		if (myitf.re) begin
@@ -45,7 +44,7 @@ always_ff @(posedge clk or negedge rst_n) begin
 					logic [$clog2(ARRAY_SIZE):0] address_for_storage;
 					address_for_storage = myitf.addr_i - ARRAY_OFFSET;
 					storage[address_for_storage] <= myitf.data_i;
-					valid[address_for_storage] <= 1'b1;
+					myitf.valid[address_for_storage] <= 1'b1;
 				end
 				default: ;
 			endcase

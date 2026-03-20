@@ -11,3 +11,13 @@ localparam MODE1_OFFSET = 8;
 localparam MODE2_OFFSET = 12;
 localparam ARRAY_OFFSET = 16;
 localparam ARRAY_OFFSET_CEILING = ARRAY_OFFSET + ARRAY_SIZE -1;
+
+localparam [DATA_WIDTH-1:0] MODE0_TYPE1 = 55;
+localparam [DATA_WIDTH-1:0] MODE0_TYPE2 = 111;
+
+localparam [DATA_WIDTH-1:0] MODE1_HIGH = '1;
+localparam [DATA_WIDTH-1:0] MODE1_LOW = '0;
+
+localparam [DATA_WIDTH-1:0] MODE2_SHORT = 'hA;
+localparam [DATA_WIDTH-1:0] MODE2_LONG = 'hF;
+localparam [DATA_WIDTH-1:0] MODE2_AVERAGE = 'hC;
