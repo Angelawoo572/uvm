@@ -1,5 +1,5 @@
 `default_nettype none
-`include "../stimuli/seq_stim_if.svh"
+`include "../stimuli_fsm/seq_stim_if.svh"
 
 module stimuli_fsm_method2 (
     seq_stim_if.STIM stim_if

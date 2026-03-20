@@ -1,5 +1,5 @@
 `default_nettype none
-`include "../stimuli/seq_stim_if.svh"
+`include "../stimuli_fsm/seq_stim_if.svh"
 /*
 Method 3 now implements a seed-selected permutation 
 over the legal enum subset [RAM:ROM].
