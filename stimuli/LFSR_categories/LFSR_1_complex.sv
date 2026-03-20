@@ -1,5 +1,5 @@
 `default_nettype none
-`include "../brendan_work/seq_stim_if.svh"
+`include "../stimuli/seq_stim_if.svh"
 
 module stimuli_fsm_method1 (
     seq_stim_if.STIM stim_if
