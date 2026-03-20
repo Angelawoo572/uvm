@@ -1,11 +1,77 @@
 `default_nettype none
 `include "../stimuli_fsm/seq_stim_if.svh"
 /*
-File 1 uses an inline LFSR inside each method module.
-The feedback taps are hard-coded locally, and each method computes and uses
-the NEXT LFSR state directly when accepting a request.
-This version is a direct, self-contained baseline implementation.
+File 2 uses a shared reusable polynomial-based LFSR module (`lfsr_poly`).
+The methods no longer implement their own LFSR logic; instead, they consume a
+common LFSR output controlled by an enable signal.
+This version is more modular and parameterizable than File 1.
 */
+
+// ============================================================
+// Shared polynomial LFSR
+// Fibonacci, shift-left, insert feedback at LSB
+//
+// Example primitive-polynomial-based taps:
+//   W=4  : x^4  + x   + 1
+//   W=8  : x^8  + x^6 + x^5 + x + 1
+//   W=16 : x^16 + x^5 + x^3 + x^2 + 1
+//   W=20 : x^20 + x^3 + 1
+//   W=32 : x^32 + x^22 + x^2 + x + 1
+// ============================================================
+module lfsr_poly #(
+    parameter int W = 32
+) (
+    input  logic         clk,
+    input  logic         rst_n,
+    input  logic         enable,
+    input  logic         seed_load,
+    input  logic [W-1:0] seed,
+    output logic [W-1:0] state
+);
+
+    logic feedback;
+    logic [W-1:0] next_state;
+
+    always_comb begin
+        unique case (W)
+            4:  feedback = state[3]  ^ state[0];                         
+            // x^4  + x + 1
+            8:  feedback = state[7]  ^ state[5] ^ state[4] ^ state[0];  
+            // x^8  + x^6 + x^5 + x + 1
+            16: feedback = state[15] ^ state[4] ^ state[2] ^ state[1];  
+            // x^16 + x^5 + x^3 + x^2 + 1
+            20: feedback = state[19] ^ state[2];                         
+            // x^20 + x^3 + 1
+            32: feedback = state[31] ^ state[21] ^ state[1] ^ state[0]; 
+            // x^32 + x^22 + x^2 + x + 1
+            default: feedback = state[W-1] ^ state[0];
+        endcase
+    end
+
+    assign next_state = {state[W-2:0], feedback};
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            state <= 'h1; // avoid all-zero lock-up
+        end else if (seed_load) begin
+            state <= (seed == '0) ? 'h1 : seed;
+        end else if (enable) begin
+            state <= next_state;
+        end
+    end
+
+endmodule : lfsr_poly
+
+/*
+*I use a shared polynomial-based LFSR as the internal candidate generator.
+With a nonzero seed and primitive-polynomial taps, 
+the internal LFSR state sequence is maximal-length.
+Method 1 and Method 2 then filter that sequence according to range constraints,
+while Method 3 maps the LFSR state into a legal enum subset.
+Therefore, the internal generator is maximal-length, 
+but the final constrained outputs are not themselves maximal-length sequences.
+*/
+
 
 // ============================================================
 // Method 1: inclusive range [lo:hi], LFSR-based search
@@ -25,19 +91,25 @@ module stimuli_fsm_method1 #(
 
     state_t state;
 
-    logic [DATA_W-1:0] lfsr_state;
+    logic [DATA_W-1:0] lfsr_value;
+    logic              lfsr_enable;
     logic [DATA_W-1:0] lo_reg, hi_reg;
     logic [DATA_W-1:0] candidate_reg;
-    logic [DATA_W-1:0] lfsr_next;
-    logic feedback;
-
-    // 32-bit Fibonacci LFSR taps
-    assign feedback  = lfsr_state[31] ^ lfsr_state[21] ^ lfsr_state[1] ^ lfsr_state[0];
-    assign lfsr_next = {lfsr_state[30:0], feedback};
 
     assign stim_if.req_ready   = (state == IDLE);
     assign stim_if.rsp_valid   = (state == RESP);
     assign stim_if.solved_data = candidate_reg;
+
+    lfsr_poly #(
+        .W(DATA_W)
+    ) u_lfsr (
+        .clk      (stim_if.clk),
+        .rst_n    (stim_if.rst_n),
+        .enable   (lfsr_enable),
+        .seed_load(stim_if.req_seed_load),
+        .seed     (stim_if.seed),
+        .state    (lfsr_value)
+    );
 
     function automatic logic in_range_inclusive(
         input logic [DATA_W-1:0] x,
@@ -49,56 +121,58 @@ module stimuli_fsm_method1 #(
         end
     endfunction
 
-    always_ff @(posedge stim_if.clk, negedge stim_if.rst_n) begin
+    always_comb begin
+        lfsr_enable = 1'b0;
+        case (state)
+            IDLE: begin
+                if (stim_if.req_valid)
+                    lfsr_enable = 1'b1;
+            end
+            SEARCH: begin
+                lfsr_enable = 1'b1;
+            end
+            default: begin
+                lfsr_enable = 1'b0;
+            end
+        endcase
+    end
+
+    always_ff @(posedge stim_if.clk or negedge stim_if.rst_n) begin
         if (!stim_if.rst_n) begin
             state         <= IDLE;
-            lfsr_state    <= 32'h1;
             lo_reg        <= '0;
             hi_reg        <= '0;
             candidate_reg <= '0;
-        end else begin
-            if (stim_if.req_seed_load) begin
-                lfsr_state <= (stim_if.seed == '0) ? 32'h1 : stim_if.seed;
-            end else begin
-                case (state)
-                    IDLE: begin
-                        if (stim_if.req_valid) begin
-                            lo_reg <= stim_if.lower_bound;
-                            hi_reg <= stim_if.upper_bound;
-
-                            lfsr_state <= lfsr_next;
-
-                            if (in_range_inclusive(lfsr_next,
-                                                   stim_if.lower_bound,
-                                                   stim_if.upper_bound)) begin
-                                candidate_reg <= lfsr_next;
-                                state         <= RESP;
-                            end else begin
-                                state         <= SEARCH;
-                            end
-                        end
-                    end
-
-                    SEARCH: begin
-                        lfsr_state <= lfsr_next;
-
-                        if (in_range_inclusive(lfsr_next, lo_reg, hi_reg)) begin
-                            candidate_reg <= lfsr_next;
+        end else if (!stim_if.req_seed_load) begin
+            case (state)
+                IDLE: begin
+                    if (stim_if.req_valid) begin
+                        lo_reg <= stim_if.lower_bound;
+                        hi_reg <= stim_if.upper_bound;
+                        if (in_range_inclusive(lfsr_value, stim_if.lower_bound, stim_if.upper_bound)) begin
+                            candidate_reg <= lfsr_value;
                             state         <= RESP;
+                        end else begin
+                            state         <= SEARCH;
                         end
                     end
+                end
 
-                    RESP: begin
-                        if (stim_if.rsp_ready) begin
-                            state <= IDLE;
-                        end
+                SEARCH: begin
+                    if (in_range_inclusive(lfsr_value, lo_reg, hi_reg)) begin
+                        candidate_reg <= lfsr_value;
+                        state         <= RESP;
                     end
+                end
 
-                    default: begin
+                RESP: begin
+                    if (stim_if.rsp_ready) begin
                         state <= IDLE;
                     end
-                endcase
-            end
+                end
+
+                default: state <= IDLE;
+            endcase
         end
     end
 
@@ -123,18 +197,25 @@ module stimuli_fsm_method2 #(
 
     state_t state;
 
-    logic [DATA_W-1:0] lfsr_state;
+    logic [DATA_W-1:0] lfsr_value;
+    logic              lfsr_enable;
     logic [DATA_W-1:0] lo_reg, hi_reg;
     logic [DATA_W-1:0] candidate_reg;
-    logic [DATA_W-1:0] lfsr_next;
-    logic feedback;
-
-    assign feedback  = lfsr_state[31] ^ lfsr_state[21] ^ lfsr_state[1] ^ lfsr_state[0];
-    assign lfsr_next = {lfsr_state[30:0], feedback};
 
     assign stim_if.req_ready   = (state == IDLE);
     assign stim_if.rsp_valid   = (state == RESP);
     assign stim_if.solved_data = candidate_reg;
+
+    lfsr_poly #(
+        .W(DATA_W)
+    ) u_lfsr (
+        .clk      (stim_if.clk),
+        .rst_n    (stim_if.rst_n),
+        .enable   (lfsr_enable),
+        .seed_load(stim_if.req_seed_load),
+        .seed     (stim_if.seed),
+        .state    (lfsr_value)
+    );
 
     function automatic logic in_range_exclusive(
         input logic [DATA_W-1:0] x,
@@ -146,56 +227,58 @@ module stimuli_fsm_method2 #(
         end
     endfunction
 
-    always_ff @(posedge stim_if.clk, negedge stim_if.rst_n) begin
+    always_comb begin
+        lfsr_enable = 1'b0;
+        case (state)
+            IDLE: begin
+                if (stim_if.req_valid)
+                    lfsr_enable = 1'b1;
+            end
+            SEARCH: begin
+                lfsr_enable = 1'b1;
+            end
+            default: begin
+                lfsr_enable = 1'b0;
+            end
+        endcase
+    end
+
+    always_ff @(posedge stim_if.clk or negedge stim_if.rst_n) begin
         if (!stim_if.rst_n) begin
             state         <= IDLE;
-            lfsr_state    <= 32'h1;
             lo_reg        <= '0;
             hi_reg        <= '0;
             candidate_reg <= '0;
-        end else begin
-            if (stim_if.req_seed_load) begin
-                lfsr_state <= (stim_if.seed == '0) ? 32'h1 : stim_if.seed;
-            end else begin
-                case (state)
-                    IDLE: begin
-                        if (stim_if.req_valid) begin
-                            lo_reg <= stim_if.lower_bound;
-                            hi_reg <= stim_if.upper_bound;
-
-                            lfsr_state <= lfsr_next;
-
-                            if (in_range_exclusive(lfsr_next,
-                                                   stim_if.lower_bound,
-                                                   stim_if.upper_bound)) begin
-                                candidate_reg <= lfsr_next;
-                                state         <= RESP;
-                            end else begin
-                                state         <= SEARCH;
-                            end
-                        end
-                    end
-
-                    SEARCH: begin
-                        lfsr_state <= lfsr_next;
-
-                        if (in_range_exclusive(lfsr_next, lo_reg, hi_reg)) begin
-                            candidate_reg <= lfsr_next;
+        end else if (!stim_if.req_seed_load) begin
+            case (state)
+                IDLE: begin
+                    if (stim_if.req_valid) begin
+                        lo_reg <= stim_if.lower_bound;
+                        hi_reg <= stim_if.upper_bound;
+                        if (in_range_exclusive(lfsr_value, stim_if.lower_bound, stim_if.upper_bound)) begin
+                            candidate_reg <= lfsr_value;
                             state         <= RESP;
+                        end else begin
+                            state         <= SEARCH;
                         end
                     end
+                end
 
-                    RESP: begin
-                        if (stim_if.rsp_ready) begin
-                            state <= IDLE;
-                        end
+                SEARCH: begin
+                    if (in_range_exclusive(lfsr_value, lo_reg, hi_reg)) begin
+                        candidate_reg <= lfsr_value;
+                        state         <= RESP;
                     end
+                end
 
-                    default: begin
+                RESP: begin
+                    if (stim_if.rsp_ready) begin
                         state <= IDLE;
                     end
-                endcase
-            end
+                end
+
+                default: state <= IDLE;
+            endcase
         end
     end
 
@@ -227,58 +310,63 @@ module stimuli_fsm_method3 #(
 
     state_t state;
 
-    logic [31:0] lfsr_state;
-    logic [31:0] lfsr_next;
-    logic [31:0] candidate_reg;
-    logic feedback;
-    logic [1:0] sel;
-    addr_t addr_enum;
-
-    assign feedback  = lfsr_state[31] ^ lfsr_state[21] ^ lfsr_state[1] ^ lfsr_state[0];
-    assign lfsr_next = {lfsr_state[30:0], feedback};
-
-    always_comb begin
-        sel = lfsr_next[1:0];
-        unique case (sel)
-            2'd0: addr_enum = RAM;
-            2'd1: addr_enum = CPU;
-            default: addr_enum = ROM; // 2 or 3 both map to ROM
-        endcase
-    end
+    logic [DATA_W-1:0] lfsr_value;
+    logic              lfsr_enable;
+    logic [DATA_W-1:0] candidate_reg;
+    logic [1:0]        sel;
+    addr_t             addr_enum;
 
     assign stim_if.req_ready   = (state == IDLE);
     assign stim_if.rsp_valid   = (state == RESP);
     assign stim_if.solved_data = candidate_reg;
 
-    always_ff @(posedge stim_if.clk, negedge stim_if.rst_n) begin
+    lfsr_poly #(
+        .W(DATA_W)
+    ) u_lfsr (
+        .clk      (stim_if.clk),
+        .rst_n    (stim_if.rst_n),
+        .enable   (lfsr_enable),
+        .seed_load(stim_if.req_seed_load),
+        .seed     (stim_if.seed),
+        .state    (lfsr_value)
+    );
+
+    always_comb begin
+        sel = lfsr_value[1:0];
+        unique case (sel)
+            2'd0: addr_enum = RAM;
+            2'd1: addr_enum = CPU;
+            default: addr_enum = ROM; // 2 or 3 -> ROM
+        endcase
+    end
+
+    always_comb begin
+        lfsr_enable = 1'b0;
+        if ((state == IDLE) && stim_if.req_valid)
+            lfsr_enable = 1'b1;
+    end
+
+    always_ff @(posedge stim_if.clk or negedge stim_if.rst_n) begin
         if (!stim_if.rst_n) begin
             state         <= IDLE;
-            lfsr_state    <= 32'h1;
-            candidate_reg <= 32'd0;
-        end else begin
-            if (stim_if.req_seed_load) begin
-                lfsr_state <= (stim_if.seed == '0) ? 32'h1 : stim_if.seed;
-            end else begin
-                case (state)
-                    IDLE: begin
-                        if (stim_if.req_valid) begin
-                            lfsr_state    <= lfsr_next;
-                            candidate_reg <= {{(DATA_W-8){1'b0}}, addr_enum};
-                            state         <= RESP;
-                        end
+            candidate_reg <= '0;
+        end else if (!stim_if.req_seed_load) begin
+            case (state)
+                IDLE: begin
+                    if (stim_if.req_valid) begin
+                        candidate_reg <= {{(DATA_W-8){1'b0}}, addr_enum};
+                        state         <= RESP;
                     end
+                end
 
-                    RESP: begin
-                        if (stim_if.rsp_ready) begin
-                            state <= IDLE;
-                        end
-                    end
-
-                    default: begin
+                RESP: begin
+                    if (stim_if.rsp_ready) begin
                         state <= IDLE;
                     end
-                endcase
-            end
+                end
+
+                default: state <= IDLE;
+            endcase
         end
     end
 
@@ -299,7 +387,7 @@ module tb_method1;
         .DATA_W(DATA_W),
         .NUM_CONSTRAINTS(NUM_CONSTRAINTS)
     ) stim_if (
-        .clk(clk),
+        .clk  (clk),
         .rst_n(rst_n)
     );
 
@@ -370,10 +458,10 @@ module tb_method1;
         reset_dut();
         load_seed(32'h0000_00A5);
 
-        request_inclusive(32'd0, 32'd255);
-        request_inclusive(32'd100, 32'd5000);
+        request_inclusive(32'd0,    32'd255);
+        request_inclusive(32'd100,  32'd5000);
         request_inclusive(32'd1000, 32'd100000);
-        request_inclusive(32'd1, 32'd3);
+        request_inclusive(32'd1,    32'd3);
 
         #50;
         $display("tb_method1 PASSED");
@@ -397,7 +485,7 @@ module tb_method2;
         .DATA_W(DATA_W),
         .NUM_CONSTRAINTS(NUM_CONSTRAINTS)
     ) stim_if (
-        .clk(clk),
+        .clk  (clk),
         .rst_n(rst_n)
     );
 
@@ -468,9 +556,9 @@ module tb_method2;
         reset_dut();
         load_seed(32'hACE1_1234);
 
-        request_exclusive(32'd0, 32'd10);
-        request_exclusive(32'd100, 32'd5000);
-        request_exclusive(32'd1234, 32'd5555);
+        request_exclusive(32'd0,     32'd10);
+        request_exclusive(32'd100,   32'd5000);
+        request_exclusive(32'd1234,  32'd5555);
         request_exclusive(32'd10000, 32'd20000);
 
         #50;
@@ -495,7 +583,7 @@ module tb_method3;
         .DATA_W(DATA_W),
         .NUM_CONSTRAINTS(NUM_CONSTRAINTS)
     ) stim_if (
-        .clk(clk),
+        .clk  (clk),
         .rst_n(rst_n)
     );
 
