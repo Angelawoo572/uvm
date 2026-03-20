@@ -1,22 +1,10 @@
 `default_nettype none
 `include "../brendan_work/seq_stim_if.svh"
-/*
- *The current M2 uses a seeded affine permutation over the legal interval.
-  This gives a deterministic bounded traversal with a hard ceiling, 
-  but its local numeric pattern can still look somewhat regular 
-  because consecutive outputs differ by a constant stride modulo 
-  the interval size.
 
-  A future refinement would be to use 
-  a stronger seeded permutation network instead of a simple affine mapping.
- */
-
-module stimuli_fsm_method2 (
+module stimuli_fsm_method1 (
     seq_stim_if.STIM stim_if
 );
     localparam int DATA_W = stim_if.DATA_W;
-    localparam int GCD_ITERS = 2*DATA_W;
-    localparam int STRIDE_SEARCH = 64;
 
     typedef enum logic [0:0] {IDLE, RESP} state_t;
     state_t state;
@@ -24,68 +12,18 @@ module stimuli_fsm_method2 (
     logic [DATA_W-1:0] seed_reg;
     logic [DATA_W-1:0] lo_reg, hi_reg;
     logic [DATA_W-1:0] range_size;
-    logic [DATA_W-1:0] idx;
-    logic [DATA_W-1:0] offset;
-    logic [DATA_W-1:0] stride;
+    logic [DATA_W-1:0] idx, offset;
     logic [DATA_W-1:0] perm_idx;
 
-    function automatic logic [DATA_W-1:0] gcd_func(
-        input logic [DATA_W-1:0] a,
-        input logic [DATA_W-1:0] b
-    );
-        logic [DATA_W-1:0] x, y, t;
-        int i;
-        begin
-            x = a;
-            y = b;
-            for (i = 0; i < GCD_ITERS; i++) begin
-                if (y != 0) begin
-                    t = x % y;
-                    x = y;
-                    y = t;
-                end
-            end
-            gcd_func = x;
-        end
-    endfunction
-
-    function automatic logic [DATA_W-1:0] choose_stride(
-        input logic [DATA_W-1:0] seed_val,
-        input logic [DATA_W-1:0] n
-    );
-        logic [DATA_W-1:0] cand;
-        logic [DATA_W-1:0] best;
-        logic found;
-        int i;
-        begin
-            if (n <= 1) begin
-                choose_stride = 0;
-            end else begin
-                best  = 1;
-                found = 1'b0;
-                for (i = 0; i < STRIDE_SEARCH; i++) begin
-                    cand = 1 + ((seed_val + i) % (n - 1));
-                    if (!found && (gcd_func(cand, n) == 1)) begin
-                        best  = cand;
-                        found = 1'b1;
-                    end
-                end
-                choose_stride = best;
-            end
-        end
-    endfunction
-
-    // exclusive bounds: lower_bound < x < upper_bound
-    assign range_size = (hi_reg > lo_reg + 1'b1) ? (hi_reg - lo_reg - 1'b1) : '0;
+    assign range_size = (hi_reg >= lo_reg) ? (hi_reg - lo_reg + 1'b1) : '0;
 
     always_comb begin
-        if (range_size != 0)
-            perm_idx = (offset + ((stride * idx) % range_size)) % range_size;
-        else
-            perm_idx = '0;
+        perm_idx = idx + offset;
+        if ((range_size != '0) && (perm_idx >= range_size))
+            perm_idx = perm_idx - range_size;
     end
 
-    assign stim_if.solved_data = (lo_reg + 1'b1) + perm_idx;
+    assign stim_if.solved_data = lo_reg + perm_idx;
     assign stim_if.req_ready   = (state == IDLE);
     assign stim_if.rsp_valid   = (state == RESP);
 
@@ -97,35 +35,29 @@ module stimuli_fsm_method2 (
             hi_reg   <= '0;
             idx      <= '0;
             offset   <= '0;
-            stride   <= '0;
         end else begin
             case (state)
                 IDLE: begin
-                    if (stim_if.req_seed_load)
+                    if (stim_if.req_seed_load) begin
                         seed_reg <= (stim_if.seed == '0) ? 'h1 : stim_if.seed;
-
+                    end
                     if (stim_if.req_valid) begin
                         lo_reg <= stim_if.lower_bound;
                         hi_reg <= stim_if.upper_bound;
-
-                        if (stim_if.upper_bound > (stim_if.lower_bound + 1'b1)) begin
-                            logic [DATA_W-1:0] n;
-                            n = stim_if.upper_bound - stim_if.lower_bound - 1'b1;
-                            offset <= seed_reg % n;
-                            stride <= choose_stride(seed_reg, n);
-                        end else begin
+                        idx    <= idx; // hold until response consumed
+                        if (stim_if.upper_bound >= stim_if.lower_bound)
+                            offset <= ((stim_if.seed == '0) ? 'h1 : stim_if.seed) %
+                                      (stim_if.upper_bound - stim_if.lower_bound + 1'b1);
+                        else
                             offset <= '0;
-                            stride <= '0;
-                        end
-
                         state <= RESP;
                     end
                 end
 
                 RESP: begin
                     if (stim_if.rsp_ready) begin
-                        if (range_size != 0) begin
-                            if (idx == range_size - 1'b1)
+                        if ((hi_reg >= lo_reg) && (range_size != '0)) begin
+                            if (idx == (range_size - 1'b1))
                                 idx <= '0;
                             else
                                 idx <= idx + 1'b1;
@@ -136,9 +68,9 @@ module stimuli_fsm_method2 (
             endcase
         end
     end
-endmodule : stimuli_fsm_method2
+endmodule: stimuli_fsm_method1
 
-module tb_method2;
+module tb_method1;
     localparam int DATA_W = 32;
     localparam int NUM_CONSTRAINTS = 4;
 
@@ -151,7 +83,7 @@ module tb_method2;
         .rst_n(rst_n)
     );
 
-    stimuli_fsm_method2 dut (.stim_if(stim_if));
+    stimuli_fsm_method1 dut (.stim_if(stim_if));
 
     always #5 clk = ~clk;
 
@@ -163,7 +95,7 @@ module tb_method2;
         stim_if.seed          = '0;
         stim_if.lower_bound   = '0;
         stim_if.upper_bound   = '0;
-        stim_if.constraint_id = 32'd2;
+        stim_if.constraint_id = '0;
         repeat (2) @(posedge clk);
         rst_n = 1;
     endtask
@@ -176,7 +108,7 @@ module tb_method2;
         stim_if.req_seed_load <= 1'b0;
     endtask
 
-    task automatic request_exclusive(
+    task automatic request_range(
         input logic [DATA_W-1:0] lo,
         input logic [DATA_W-1:0] hi
     );
@@ -192,9 +124,9 @@ module tb_method2;
 
         wait(stim_if.rsp_valid);
         @(posedge clk);
-        $display("[M2] solved_data=%0d constraint=(%0d,%0d)", stim_if.solved_data, lo, hi);
-        if (!((stim_if.solved_data > lo) && (stim_if.solved_data < hi))) begin
-            $display("ERROR: method2 output violates exclusive bounds");
+        $display("[M1] solved_data=%0d range=[%0d:%0d]", stim_if.solved_data, lo, hi);
+        if (!((stim_if.solved_data >= lo) && (stim_if.solved_data <= hi))) begin
+            $display("ERROR: method1 output out of range");
             $finish;
         end
         stim_if.rsp_ready <= 1'b0;
@@ -203,11 +135,11 @@ module tb_method2;
     initial begin
         clk = 0;
         reset();
-        load_seed(32'hACE1);
+        load_seed(32'd5);
 
-        repeat (8) request_exclusive(32'd1234, 32'd5555);
+        repeat (8) request_range(32'd1, 32'd3);
 
         #20;
         $finish;
     end
-endmodule : tb_method2
+endmodule: tb_method1
