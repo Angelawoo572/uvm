@@ -13,7 +13,8 @@ app = typer.Typer(add_completion=False)
 @app.command()
 def main(
     input_filename: Annotated[str, typer.Argument(help="Input text file containing constraints. (Output of parser) E.g., 'constraints.txt',")], 
-    output_directory: Annotated[str, typer.Argument(help="Output directory to save the generated stimuli_fsm RTL. E.g., 'output/'")]
+    output_directory: Annotated[str, typer.Argument(help="Output directory to save the generated stimuli_fsm RTL. E.g., 'output/'"),],
+    lfsr_width: Annotated[int, typer.Option(help="Width of the LFSR input for generated modules. Default is 32.")] = 32
 ) -> None:
     # Open and read file
     try:
@@ -35,8 +36,9 @@ def main(
         if not constraint_type:
             continue # skip lines without constraint
 
-        content.append(generate_constraint(constraint_type, line, output_directory)) # content could be tuple 
-                                                                   # ("module name", "module rtl", "lower_bound, upper_bound")
+        content.append(generate_constraint(constraint_type, line, output_directory, lfsr_width)) # content could be tuple 
+                                                                   # ("module name", "module rtl", lower_bound, upper_bound) for dist, assign, bit-assign, bit-slice constraints
+                                                                     # (None, None, lower_bound, upper_bound) for inside and compare constraints since we will implement the inside and compare constraint in the main stimuli_fsm module. We only need to return the lower and upper bound for the inside and compare constraint.
     if not content:
         print("No valid constraints found in the file.")
         return # skip if no constraints

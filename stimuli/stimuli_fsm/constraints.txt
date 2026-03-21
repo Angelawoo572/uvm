@@ -9,7 +9,7 @@ constraint test_addr_range1 { addr > 4'h4 && addr < 4'hC };
 constraint test_addr_range2 { addr_bus > 8'h20 && addr_bus < 8'h80 };
 
 // 3. enum types - Bounded LFSR with enum constraints
-constraint state_enum { state inside {IDLE, FETCH, EXECUTE, WRITE} };
+// constraint state_enum { state inside {IDLE, FETCH, EXECUTE, WRITE} };
 
 // 4. dist - Bounded LFSR with weight table
 constraint test_payload { payload dist { 0 := 5, 1 := 95 } };
