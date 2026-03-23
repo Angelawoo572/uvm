@@ -75,6 +75,8 @@ def main(
 
     # Parse file lines and save into content list (removes comments)
     records = []
+    next_solver_constraint_id = 1
+    passthrough_alias_counter = 0
     for line in lines:
         line = re.sub(r'//.*', '', line).strip() # remove comments
         if not line:
@@ -91,14 +93,34 @@ def main(
             lfsr_width
         )
 
-        constraint_id = len(records) + 1 # constraint_id 0 is reserved in constraint_solver.sv
+        if module_name and output:
+            solver_constraint_id = next_solver_constraint_id
+            db_constraint_id = str(solver_constraint_id)
+            next_solver_constraint_id += 1
+            passthrough_assign = False
+        elif constraint_type in {"inside", "compare"}:
+            # inside/compare map directly to solver_output[0].
+            solver_constraint_id = 0
+            passthrough_alias_counter += 1
+            db_constraint_id = f"0.{passthrough_alias_counter}"
+            passthrough_assign = False
+        else:
+            # Preserve pass-through behavior for constraint types that do not
+            # emit standalone solver modules.
+            solver_constraint_id = next_solver_constraint_id
+            db_constraint_id = str(solver_constraint_id)
+            next_solver_constraint_id += 1
+            passthrough_assign = True
+
         records.append(
             {
-                "constraint_id": constraint_id,
+                "solver_constraint_id": solver_constraint_id,
+                "db_constraint_id": db_constraint_id,
                 "constraint_type": constraint_type,
                 "constraint_text": line,
                 "module_name": module_name,
                 "output": output,
+                "passthrough_assign": passthrough_assign,
                 "lower_bound": lower_bound,
                 "upper_bound": upper_bound,
             }
@@ -121,7 +143,7 @@ def main(
     used_instance_names = set()
 
     for record in records:
-        idx = record["constraint_id"]
+        idx = record["solver_constraint_id"]
         module_name = record["module_name"]
         output = record["output"]
 
@@ -138,20 +160,23 @@ def main(
             if module_name not in emitted_module_defs:
                 emitted_module_defs.add(module_name)
                 module_blocks.append(output.strip())
-        else:
-            # inside/compare are solved by bounds on the bounded LFSR, so pass through.
+        elif record["passthrough_assign"]:
             instance_lines.append(f"    assign solver_output[{idx}] = lfsr_output;")
 
     instance_block = "\n".join(instance_lines) if instance_lines else "    // No generated constraints"
     modules_block = "\n\n".join(module_blocks) if module_blocks else "// No generated solver modules"
 
-    if "// TODO: Instantiate constraint solvers here" in solver_template:
+    instantiate_marker = "    // TODO: Instantiate constraint solvers here"
+    if instantiate_marker in solver_template:
+        solver_template = solver_template.replace(instantiate_marker, instance_block)
+    elif "// TODO: Instantiate constraint solvers here" in solver_template:
         solver_template = solver_template.replace("// TODO: Instantiate constraint solvers here", instance_block)
     else:
         print("Warning: First TODO marker not found in constraint_solver.sv")
 
-    if "// TODO: Define constraint solvers here" in solver_template:
-        solver_template = solver_template.replace("// TODO: Define constraint solvers here", modules_block)
+    define_marker = "// TODO: Define constraint solvers here"
+    if define_marker in solver_template:
+        solver_template = solver_template.replace(define_marker, modules_block)
     else:
         print("Warning: Second TODO marker not found in constraint_solver.sv")
 
@@ -172,7 +197,7 @@ def main(
         db_lines.append(
             "|".join(
                 [
-                    str(record["constraint_id"]),
+                    str(record["db_constraint_id"]),
                     str(record["constraint_type"]),
                     str(record["constraint_text"]),
                     str(record["module_name"] if record["module_name"] else "N/A"),
