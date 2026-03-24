@@ -1,0 +1,11 @@
+# constraint_id|constraint_type|constraint|module_name|lower_bound|upper_bound
+0|reserved|solver_output[0] = lfsr_output|N/A|0|4294967295
+1|assign|constraint force_rst { rst_n == 1'b0 };|rst_n_assign_module|0|4294967295
+0.1|inside|constraint test_addr1 { addr inside {[11:20]} };|N/A|11|20
+0.2|compare|constraint test_addr_range1 { addr > 4'h4 && addr < 4'hC };|N/A|5|11
+0.3|compare|constraint test_addr_range2 { addr_bus > 8'h20 && addr_bus < 8'h80 };|N/A|33|127
+2|dist|constraint test_payload { payload dist { 0 := 5, 1 := 95 } };|payload_dist_module|0|4294967295
+3|dist|constraint test_data { data dist { 0 := 10, 20 := 80, 12 := 10 } };|data_dist_module|0|4294967295
+4|parity|constraint test_parity { parity == (^data) };|N/A|0|4294967295
+5|bit-assign|constraint test_lsb { data[0] == 1'b1 };|data_bit_assign_module|0|4294967295
+6|bit-slice|constraint test_msb_range { data[7:4] != 4'b1111 };|data_bit_slice_module|0|4294967295
