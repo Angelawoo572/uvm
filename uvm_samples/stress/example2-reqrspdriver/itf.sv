@@ -14,7 +14,7 @@ interface itf (input bit clk);
 	// output means signal can only be driven
 	// inout means both
 	clocking drv_cb @(posedge clk);
-		default input #1step output #1;
+		default input #0 output #1; // the use of number zero here is unusual, but this is on purpose
 		output rst_n, re, we, addr_i, data_i; 
 		input data_o, valid;
 	endclocking

@@ -23,9 +23,8 @@ class drv #(int DATA_WIDTH=32, int ADDR_WIDTH=16, int ARRAY_SIZE=8) extends uvm_
 
         	forever begin // because this is a forever loop, simulation can hang here very easily if the signaling is not in place
 			seq_item_port.get_next_item(req);
-			`uvm_info (get_type_name (), $sformatf ("driver acquired request..."), UVM_NONE)
+			`uvm_info(get_type_name (), $sformatf ("driver acquired request..."), UVM_NONE)
 			
-		    
 			//@(vif.drv_cb); // checks for the clocking block event
 			vif.drv_cb.addr_i <= req.addr_i; // then performs NBAs to keep the clocking block delays
 			vif.drv_cb.data_i <= req.data_i;
@@ -39,7 +38,10 @@ class drv #(int DATA_WIDTH=32, int ADDR_WIDTH=16, int ARRAY_SIZE=8) extends uvm_
 			rsp.valid = vif.drv_cb.valid;
 			rsp.set_id_info(req);
 			seq_item_port.item_done(rsp); // item done issued on rsp
-			`uvm_info (get_type_name (), $sformatf ("... driver returned response"), UVM_NONE)
+			`uvm_info(get_type_name (), $sformatf ("... driver returned response"), UVM_NONE)
+//			`uvm_info(get_type_name (), req.sprint(), UVM_NONE)
+			req.print();
+			rsp.print();
 		end
 	endtask: run_phase
 endclass: drv

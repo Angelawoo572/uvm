@@ -1,6 +1,4 @@
 class req_item extends uvm_sequence_item;
-	`uvm_object_utils(req_item)
-
 	`include "constants.svh"
 
 	// inputs to the DUT
@@ -13,11 +11,17 @@ class req_item extends uvm_sequence_item;
 	function new(string name = "req_item");
 		super.new(name);
 	endfunction: new
+
+	`uvm_object_utils_begin(req_item)
+		`uvm_field_int(addr_i,UVM_ALL_ON)
+		`uvm_field_int(we,UVM_ALL_ON)
+		`uvm_field_int(re,UVM_ALL_ON)
+		`uvm_field_int(data_i,UVM_ALL_ON)
+	`uvm_object_utils_end
+
 endclass: req_item
 
 class rsp_item extends uvm_sequence_item;
-	`uvm_object_utils(rsp_item)
-
 	`include "constants.svh"
 
 	// outputs from the DUT
@@ -27,6 +31,12 @@ class rsp_item extends uvm_sequence_item;
 	function new(string name = "rsp_item");
 		super.new(name);
 	endfunction: new
+
+	`uvm_object_utils_begin(rsp_item)
+		`uvm_field_int(data_o,UVM_ALL_ON)
+		`uvm_field_int(valid,UVM_ALL_ON)
+	`uvm_object_utils_end
+
 endclass: rsp_item
 
 class full_item extends uvm_sequence_item;
