@@ -52,7 +52,7 @@ def _parse_dist_entries(body: str) -> list[dict[str, int]]:
     return entries
 
 
-def _build_case_items(map_table: list[dict[str, int]], var_name: str) -> list[str]:
+def _build_case_items(map_table: list[dict[str, int]]) -> list[str]:
     """Generate case items that map scaled random slots to output values."""
     lines: list[str] = []
     current_low = 0
@@ -64,9 +64,9 @@ def _build_case_items(map_table: list[dict[str, int]], var_name: str) -> list[st
 
         if weight > 0:
             if current_low == range_high:
-                lines.append(f"        {current_low:<6}: {var_name} = {value};")
+                lines.append(f"        {current_low:<6}: data = {value};")
             else:
-                lines.append(f"        [{current_low}:{range_high}]: {var_name} = {value};")
+                lines.append(f"        [{current_low}:{range_high}]: data = {value};")
 
         current_low += weight
 
@@ -90,7 +90,7 @@ def generate_dist(constraint_line: str, lfsr_width: int = 32, scaled_width: int 
     rtl.append(f"// --- Generated Weighted Random Logic for '{var_name}' ---")
     rtl.append(f"// Input LFSR Width: {lfsr_width} bits")
     rtl.append(
-        f"module {var_name}_dist_module (input logic [{lfsr_width-1}:0] lfsr_in, output logic [31:0] {var_name});"
+        f"module {var_name}_dist_module (input logic [{lfsr_width-1}:0] lfsr_in, output logic [31:0] data);"
     )
     rtl.append(f"logic [{scaled_width-1}:0] scaled_rand;")
     rtl.append("")
@@ -99,8 +99,8 @@ def generate_dist(constraint_line: str, lfsr_width: int = 32, scaled_width: int 
     rtl.append("")
     rtl.append("always_comb begin")
     rtl.append("    case (scaled_rand) inside")
-    rtl.extend(_build_case_items(map_table, var_name))
-    rtl.append(f"        default: {var_name} = '0; // Should not be reached")
+    rtl.extend(_build_case_items(map_table))
+    rtl.append("        default: data = '0; // Should not be reached")
     rtl.append("    endcase")
     rtl.append("end")
     rtl.append("endmodule")

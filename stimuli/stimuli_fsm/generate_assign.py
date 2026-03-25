@@ -25,7 +25,7 @@ def generate_assign(constraint_line: str, lfsr_width: int = 32) -> str:
     rtl: list[str] = []
     rtl.append(f"module {module_name} (")
     rtl.append(f"    input  logic [{lfsr_width-1}:0] lfsr_in,")
-    rtl.append(f"    output logic [{lfsr_width-1}:0] {var_name}")
+    rtl.append(f"    output logic [{lfsr_width-1}:0] data")
     rtl.append(");")
     rtl.append("")
 
@@ -38,15 +38,15 @@ def generate_assign(constraint_line: str, lfsr_width: int = 32) -> str:
         # Keep unconstrained bits random and constrain only the selected slice.
         if msb < lfsr_width - 1:
             rtl.append(
-                f"    assign {var_name}[{lfsr_width-1}:{msb+1}] = lfsr_in[{lfsr_width-1}:{msb+1}];"
+                f"    assign data[{lfsr_width-1}:{msb+1}] = lfsr_in[{lfsr_width-1}:{msb+1}];"
             )
 
-        rtl.append(f"    assign {var_name}[{msb}:{lsb}] = {value};")
+        rtl.append(f"    assign data[{msb}:{lsb}] = {value};")
 
         if lsb > 0:
-            rtl.append(f"    assign {var_name}[{lsb-1}:0] = lfsr_in[{lsb-1}:0];")
+            rtl.append(f"    assign data[{lsb-1}:0] = lfsr_in[{lsb-1}:0];")
     else:
-        rtl.append(f"    assign {var_name} = {value};")
+        rtl.append(f"    assign data = {value};")
 
     rtl.append("")
     rtl.append("endmodule")

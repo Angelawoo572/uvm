@@ -21,16 +21,16 @@ endmodule: constraint_solver
 
 module rst_n_assign_module (
     input  logic [31:0] lfsr_in,
-    output logic [31:0] rst_n
+    output logic [31:0] data
 );
 
-    assign rst_n = 1'b0;
+    assign data = 1'b0;
 
 endmodule
 
 // --- Generated Weighted Random Logic for 'payload' ---
 // Input LFSR Width: 32 bits
-module payload_dist_module (input logic [31:0] lfsr_in, output logic [31:0] payload);
+module payload_dist_module (input logic [31:0] lfsr_in, output logic [31:0] data);
 logic [63:0] scaled_rand;
 
 // Scaling: Map LFSR to [0 : 99]
@@ -38,9 +38,9 @@ assign scaled_rand = (lfsr_in * 100) >> 32;
 
 always_comb begin
     case (scaled_rand) inside
-        [0:4]: payload = 0;
-        [5:99]: payload = 1;
-        default: payload = '0; // Should not be reached
+        [0:4]: data = 0;
+        [5:99]: data = 1;
+        default: data = '0; // Should not be reached
     endcase
 end
 endmodule
