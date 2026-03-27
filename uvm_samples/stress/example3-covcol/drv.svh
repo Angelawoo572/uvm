@@ -40,8 +40,8 @@ class drv #(int DATA_WIDTH=32, int ADDR_WIDTH=16, int ARRAY_SIZE=8) extends uvm_
 			seq_item_port.item_done(rsp); // item done issued on rsp
 			`uvm_info(get_type_name (), $sformatf ("... driver returned response"), UVM_NONE)
 //			`uvm_info(get_type_name (), req.sprint(), UVM_NONE)
-			req.print();
-			rsp.print();
+			//req.print();
+			//rsp.print();
 		end
 	endtask: run_phase
 endclass: drv

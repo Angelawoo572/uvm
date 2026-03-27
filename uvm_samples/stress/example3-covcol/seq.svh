@@ -88,6 +88,25 @@ class config_seq extends uvm_sequence;
         endtask
 endclass: config_seq
 
+class read_seq extends uvm_sequence;
+        `uvm_object_utils(read_seq)
+
+        function new(string name = "read_seq");
+                super.new(name);
+        endfunction: new
+
+        req_item req;
+
+        virtual task body();
+
+		`uvm_do_with(req, {rst_n==1; addr_i==MODE0_OFFSET; we==0; re==1;})
+		`uvm_do_with(req, {rst_n==1; addr_i==MODE1_OFFSET; we==0; re==1;})
+		`uvm_do_with(req, {rst_n==1; addr_i==MODE2_OFFSET; we==0; re==1;})
+		`uvm_do_with(req, {rst_n==1; addr_i==ARRAY_OFFSET; we==0; re==1;})
+		`uvm_do_with(req, {rst_n==1; addr_i==ARRAY_OFFSET+3; we==0; re==1;})
+	endtask
+endclass: read_seq
+
 class change_mode_seq extends uvm_sequence #(req_item, rsp_item); // specialization is needed for this case
         `uvm_object_utils(change_mode_seq)
 	`include "constants.svh"	
@@ -128,6 +147,7 @@ class reset_then_config_vseq extends uvm_sequence;
 	reset_req_item rst;
         config_seq cfg;
 	change_mode_seq change;
+	read_seq read;
 
         virtual task body();
 		`uvm_do(rst)
@@ -136,6 +156,7 @@ class reset_then_config_vseq extends uvm_sequence;
 		`uvm_do(change)
 		`uvm_do(change)
 		`uvm_do(change)
+		`uvm_do(read)
 	endtask
 endclass: reset_then_config_vseq
 	

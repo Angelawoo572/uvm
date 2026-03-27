@@ -1,7 +1,7 @@
-class example2 extends uvm_test;
-        `uvm_component_utils (example2)
+class example3 extends uvm_test;
+        `uvm_component_utils (example3)
 
-        function new (string name = "example2", uvm_component parent = null);
+        function new (string name = "example3", uvm_component parent = null);
                 super.new (name, parent);
         endfunction
 
@@ -24,5 +24,5 @@ class example2 extends uvm_test;
                 m_seq.start(m_env.m_agt.m_sqr);
                 phase.drop_objection (this);
         endtask
-endclass : example2
+endclass : example3
 

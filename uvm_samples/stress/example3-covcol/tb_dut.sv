@@ -21,7 +21,7 @@ end
 initial begin
 	clk = 0;
 	uvm_config_db#(virtual itf #(.DATA_WIDTH(DATA_WIDTH), .ADDR_WIDTH(ADDR_WIDTH), .ARRAY_SIZE(ARRAY_SIZE)) )::set(null, "tb", "vif", myitf);
-    	run_test("example2");
+    	run_test("example3");
 end
 endmodule
 

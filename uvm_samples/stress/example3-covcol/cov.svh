@@ -10,14 +10,14 @@ covergroup addr_cg (ref bit [ADDR_WIDTH-1:0] addr);
 		bins MODE1 = MODE1_OFFSET;
 		bins MODE2 = MODE2_OFFSET;
 		bins ARRAY = {[ARRAY_OFFSET:ARRAY_OFFSET_CEILING]};
+		bins other_addresses = default; // any other address
 	}
 endgroup
 
-// TODO example that uses ignore_bins
 // TODO example that uses sequences of values
 // TODO example that uses automatic ranging
 // TODO example that does crosses
-// TODO options per instance?
+// TODO at least use case
 
 class cov extends uvm_subscriber #(full_item);
 	`uvm_component_utils(cov)
@@ -33,6 +33,7 @@ class cov extends uvm_subscriber #(full_item);
 	addr_cg writes, reads;
 
 	covergroup array_cg ();
+		option.per_instance = 0 ;
 		cp_addr : coverpoint item.req.addr_i { // coverpoint points to a hierarchical variable
 			bins VALID[] = {[ARRAY_OFFSET:ARRAY_OFFSET_CEILING]};
 			illegal_bins outside_range = default; // any other address is illegal
@@ -40,11 +41,13 @@ class cov extends uvm_subscriber #(full_item);
 	endgroup
 
 	covergroup mode2_cg with function sample(bit [DATA_WIDTH-1:0] data);
+		// option per instance is ommited, this means default of
+		// 0 should be assumed
 		cp_data : coverpoint data {
 			bins short = MODE2_SHORT;
 			bins long = MODE2_LONG;
 			bins average = MODE2_AVERAGE;
-			bins otherstuff = default; // catches any other value
+			bins otherstuff = default; // catches any other value, puts them in here
 		}
 	endgroup
 
@@ -53,15 +56,19 @@ class cov extends uvm_subscriber #(full_item);
 		writes = new(local_addr);
 		reads = new(local_addr);
 		array_cg = new();
+		mode2_cg = new();
 	endfunction
 
 	function void write(full_item t); // must be named "t", because write() is a pure function that already has t name
 		this.item = t;
 		local_addr = item.req.addr_i;
 
+		item.req.print();
+		item.rsp.print();
+
 		if (item.req.we) // is a write
 			writes.sample(); 
-		if (item.req.re) // is a write
+		if (item.req.re) // is a read
 			reads.sample(); 
 
 		array_cg.sample(); // because array_cg is declared inside the class, it becomes an instance

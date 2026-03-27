@@ -23,13 +23,23 @@ class mon #(int DATA_WIDTH=32, int ADDR_WIDTH=16, int ARRAY_SIZE=8) extends uvm_
 		// transaction and writes into analysis port when complete
 		forever begin
 			@ (vif.mon_cb);
-			if (vif.mon_cb.rst_n) begin
-				full_item item = full_item::type_id::create("item");
+			if (vif.mon_cb.rst_n) begin // not under reset
+				full_item item = full_item::type_id::create("full");
+				req_item req = req_item::type_id::create("full.req");
+				rsp_item rsp = rsp_item::type_id::create("full.rsp");
 
-				// There is a null pointer here
-				// TODO the current code does not associate
-				// the right request with the right response
-				// this is fixed in the monitor stress test
+				req.addr_i = vif.mon_cb.addr_i;
+				req.we = vif.mon_cb.we;
+				req.re = vif.mon_cb.re;
+				req.rst_n = vif.mon_cb.rst_n;
+				req.data_i = vif.mon_cb.data_i;
+
+				rsp.data_o = vif.mon_cb.data_o;
+				rsp.valid = vif.mon_cb.valid;
+
+				item.req = req;
+				item.rsp = rsp;
+
 				m_cov_port.write(item);
 			end
 
