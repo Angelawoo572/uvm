@@ -72,7 +72,11 @@ class VerilogModule:
                 # We assume parent output naming convention matches child port mapping logic
                 for port in sub_mod.outputs:
                     # In this hierarchy, we prefix child outputs with the instance name to create the parent output name
-                    parent_port_name = f"{instance_name}_{port}"
+                    # Do not prefix for the FSM module
+                    if instance_name == "cov_fsm_inst":
+                        parent_port_name = f"{port}"
+                    else:
+                        parent_port_name = f"{instance_name}_{port}"
                     connections.append(f"        .{port}({parent_port_name})")
                 
                 lines.append(",\n".join(connections))
@@ -99,7 +103,7 @@ def get_covp(cross_data, cg_data):
         saved_covp.append(cur)
     return saved_covp
 
-def gen_hierarchy_cross(ref, mod, saved_covp, counter_width=4):
+def gen_hierarchy_cross(ref, mod, saved_covp, counter_width=16):
     # Internal signals
     # Create an index for each cross point
     signal = ""
@@ -133,21 +137,21 @@ def gen_hierarchy_cross(ref, mod, saved_covp, counter_width=4):
 
     # Sequential Logic
     mod.add_line("")
-    mod.add_line("always_ff @(posedge clk or negedge rst_n) begin")
-    mod.add_line("    if (!rst_n) begin")
+    mod.add_line("always_ff @(posedge clk or negedge rst) begin")
+    mod.add_line("    if (!rst) begin")
     mod.add_line(f"        {ref}_ctr_r <= '0;")
     mod.add_line("    end else if (sample) begin")
     mod.add_line(f"        {ref}_ctr_r <= {ref}_ctr_n;")
     mod.add_line("    end")
     mod.add_line("end")
 
-def gen_flat_cross(ref, mod, saved_covp, counter_width=4):
+def gen_flat_cross(ref, mod, saved_covp, counter_width=16):
     # Calculate the total number of bins by multiplying the lengths of all bins
     bin_counts = [len(covp.get('bins')) for covp in saved_covp]
     total_bins = math.prod(bin_counts) if bin_counts else 0
     
-    # Generate the concatenated signal string, e.g., "{cp1_idx, cp2_idx}"
-    covp_refs = [covp.get('reference') for covp in saved_covp]
+    # Generate the concatenated signal string, e.g., "{cp1_idx_index, cp2_idx_index}"
+    covp_refs = [f"{covp.get('reference')}_index" for covp in saved_covp]
     concat_sig = "{" + ", ".join(covp_refs) + "}"
     
     # Internal signals (Flattened unpacked arrays)
@@ -200,8 +204,8 @@ def gen_flat_cross(ref, mod, saved_covp, counter_width=4):
 
     # Sequential Logic
     mod.add_line("")
-    mod.add_line("always_ff @(posedge clk or negedge rst_n) begin")
-    mod.add_line("    if (!rst_n) begin")
+    mod.add_line("always_ff @(posedge clk or negedge rst) begin")
+    mod.add_line("    if (!rst) begin")
     mod.add_line(f"        {ref}_ctr_r <= '{{default:0}};")
     mod.add_line("    end else if (sample) begin")
     mod.add_line(f"        {ref}_ctr_r <= {ref}_ctr_n;")
@@ -210,7 +214,7 @@ def gen_flat_cross(ref, mod, saved_covp, counter_width=4):
 
 # creates code for cross coverage
 # lives within a covergroup
-def generate_cross(cross_data, cg_data, counter_width=4):
+def generate_cross(cross_data, cg_data, counter_width=16):
     ref = cross_data['reference']
     mod = VerilogModule(ref)
 
@@ -226,12 +230,12 @@ def generate_cross(cross_data, cg_data, counter_width=4):
 
     return mod
 
-def generate_coverpoint(cp_data, counter_width=4):
+def generate_coverpoint(cp_data, counter_width=16):
     ref = cp_data['reference']
     mod = VerilogModule(ref)
     # Inputs
     mod.add_input("clk", 1)
-    mod.add_input("rst_n", 1)
+    mod.add_input("rst", 1)
     mod.add_input("sample", 1)
     
     for sig in cp_data['signals']:
@@ -286,8 +290,8 @@ def generate_coverpoint(cp_data, counter_width=4):
 
     # Sequential Logic
     mod.add_line("")
-    mod.add_line("always_ff @(posedge clk or negedge rst_n) begin")
-    mod.add_line("    if (!rst_n) begin")
+    mod.add_line("always_ff @(posedge clk or negedge rst) begin")
+    mod.add_line("    if (!rst) begin")
     for i in range(num_bins):
         mod.add_line(f"        {ref}_ctr_r[{i}] <= '0;")
     mod.add_line("    end else if (sample) begin")
@@ -303,7 +307,7 @@ def generate_covergroup(cg_data):
     
     # Standard Inputs
     mod.add_input("clk", 1)
-    mod.add_input("rst_n", 1)
+    mod.add_input("rst", 1)
     mod.add_input("sample", 1) # Assumes external trigger logic determines 'sample' high
 
     # Process Children (Coverpoints)
@@ -344,7 +348,7 @@ def generate_coverage_model(model_data):
     
     # Standard Inputs
     mod.add_input("clk", 1)
-    mod.add_input("rst_n", 1)
+    mod.add_input("rst", 1)
     mod.add_input("sample", 1) 
 
     # Process Children (Covergroups)
@@ -374,6 +378,171 @@ def collect_modules(mod, module_list):
     if mod not in module_list:
         module_list.append(mod)
 
+# creates a table that maps a code to signal name and width
+def gen_output_table(top_mod):
+    output_table = {}
+
+    for idx, sub_mod in enumerate(top_mod.sub_modules):
+        for idy, key in enumerate(top_mod.outputs.keys()):
+            id = idx * len(top_mod.sub_modules) + idy
+            output_table[id] = {"name": key, "width": top_mod.outputs[key], "cg_id": idx}
+    
+    return output_table
+
+# gets id of signal given name, returns -1 on failure
+def get_id(signal_name, output_table):
+    for id in output_table.keys():
+        if output_table[id].get("name") == signal_name:
+            return id
+    return -1 
+
+# creates output logic for a single covergroup
+def gen_output_cg(cg, output_table):
+    mod = VerilogModule("output_mod")
+    signal_id_bits = math.ceil(math.log2(len(output_table)))
+    mod.add_input("signal_id", signal_id_bits)
+    mod.add_output("byte_done", 1)
+    mod.add_output(f"{cg.name}_byte", 8)
+
+    # byte_counter, tracks which byte of output signal is transmitted
+    max_output_width = 0
+    for key in cg.outputs.keys():
+        if cg.outputs[key] > max_output_width:
+            max_output_width = cg.outputs[key]
+    byte_ctr_bits = math.ceil(math.log2(max_output_width / 8))
+    mod.add_input("byte_ctr", byte_ctr_bits)
+    mod.add_line(f"logic[{byte_ctr_bits-1}:0] byte_ctr;")
+
+    # create mux for each output signal
+    for output in cg.outputs.keys():
+        width = cg.outputs[key]
+        mod.add_input(output, width)
+        mod.add_line(f"logic[7:0] {output}_byte;")
+        mod.add_line(f"logic {output}_done;")
+        mod.add_line("")
+        mod.add_line("always_comb begin")            
+        mod.add_line(f"    {output}_byte = '0;")
+        mod.add_line("    case(byte_ctr)")
+        for x in range(byte_ctr_bits + 1):
+            # make a new case for each packet in output
+            if (x * 8 < width):
+                end_bit = x * 8 + 7 if (x * 8 + 7 < width) \
+                    else x * 8 + width % 8 - 1
+                mod.add_line(f"        {x}: {output}_byte[{end_bit % 8}:0] = " +
+                             f"{output}[{end_bit}:{x * 8}];")
+        mod.add_line(f"    default: {output}_byte = '0;")
+        mod.add_line(f"    endcase")
+        mod.add_line("end")
+        id = get_id(output, output_table)
+        # done signal asserted in same cycle that last packet is sent
+        byte_num = math.ceil(width / 8)
+        mod.add_line(f"assign {output}_done = " + 
+                     f"(signal_id == {id}) & (byte_ctr == {byte_num - 1});")
+        mod.add_line("")
+    
+    # mux output signal to generate cg_byte
+    mod.add_line("always_comb begin")
+    mod.add_line(    "case(signal_id)")
+    for output in cg.outputs.keys():
+        id = get_id(output, output_table)
+        mod.add_line(f"        {id}: {cg.name}_byte = {output}_byte;")
+    mod.add_line(f"        default: {cg.name}_byte = '0;")
+    mod.add_line(    "endcase")
+    mod.add_line("end")
+
+    # assert done signal if any packet is done sending
+    or_logic = " |\n        ".join(f"{output}_done" for output in cg.outputs.keys())
+    mod.add_line(f"assign byte_done = {or_logic};")
+    return mod
+
+# generates the FSM to orchestrate UART transmission of coverage data
+def gen_cov_fsm(cg, output_table):
+    mod = VerilogModule("cov_fsm")
+    
+    # Dynamically calculate parameterized widths
+    signal_count = len(output_table)
+    signal_id_bits = max(1, math.ceil(math.log2(signal_count)))
+    
+    max_output_width = 0
+    for key in cg.outputs.keys():
+        if cg.outputs[key] > max_output_width:
+            max_output_width = cg.outputs[key]
+    
+    # Calculate byte_ctr_bits, ensuring it is at least 1 bit wide (logic[0:0])
+    byte_ctr_bits = max(1, math.ceil(math.log2(max_output_width / 8)))
+
+    # Add inputs
+    mod.add_input("clk", 1)
+    mod.add_input("rst", 1)
+    mod.add_input("sim_complete", 1)
+    mod.add_input("tx_ready", 1)
+    mod.add_input("packet_ready", 1)
+    mod.add_input("packet_done", 1)
+
+    # Add outputs
+    mod.add_output("done", 1)
+    mod.add_output("byte_ctr", byte_ctr_bits)
+    mod.add_output("signal_id", signal_id_bits)
+    mod.add_output("send_id", 1)
+
+    # State definitions and local parameters
+    mod.add_line("enum logic[1:0] {s_idle, s_send_id, s_packet} state_n, state_p;")
+    mod.add_line(f"localparam SIGNAL_COUNT = {signal_count};")
+    mod.add_line("")
+    
+    # Next state logic
+    mod.add_line("always_comb begin")
+    mod.add_line("    state_n = state_p;")
+    mod.add_line("    case(state_p)")
+    mod.add_line("        s_idle: if (sim_complete & tx_ready) state_n = s_send_id;")
+    mod.add_line("        s_send_id: if (tx_ready) state_n = s_packet;")
+    mod.add_line("        s_packet: begin ")
+    mod.add_line("            if (signal_id == (SIGNAL_COUNT-1) & tx_ready) state_n = s_idle;")
+    mod.add_line("            else if (tx_ready & packet_done) state_n = s_send_id;")
+    mod.add_line("        end")
+    mod.add_line("    endcase")
+    mod.add_line("end")
+    mod.add_line("")
+    
+    # Counters logic
+    mod.add_line(f"logic[{signal_id_bits-1}:0] signal_id_n;")
+    mod.add_line(f"logic[{byte_ctr_bits-1}:0] byte_ctr_n;")
+    mod.add_line("always_comb begin")
+    mod.add_line("    signal_id_n = signal_id;")
+    mod.add_line("    byte_ctr_n = byte_ctr;")
+    mod.add_line("    if (state_p == s_packet & tx_ready) begin")
+    mod.add_line("        byte_ctr_n = byte_ctr + 1;")
+    mod.add_line("    end")
+    mod.add_line("    if (state_p == s_packet & state_n == s_send_id) begin")
+    mod.add_line("        signal_id_n = signal_id + 1;")
+    mod.add_line("    end")
+    mod.add_line("    if (state_p != s_packet) begin")
+    mod.add_line("        byte_ctr_n = '0;")
+    mod.add_line("    end")
+    mod.add_line("end")
+    mod.add_line("")
+    
+    # Status assignments
+    mod.add_line("assign done = (state_p == s_packet & state_n == s_idle);")
+    mod.add_line("assign send_id = (state_p == s_send_id);")
+    mod.add_line("")
+    
+    # Sequential logic
+    mod.add_line("always_ff @(posedge clk) begin")
+    mod.add_line("    if (rst) begin ")
+    mod.add_line("        state_p <= s_idle;")
+    mod.add_line("        byte_ctr <= '0;")
+    mod.add_line("        signal_id <= '0;")
+    mod.add_line("    end")
+    mod.add_line("    else begin")
+    mod.add_line("        state_p <= state_n;")
+    mod.add_line("        byte_ctr <= byte_ctr_n;")
+    mod.add_line("        signal_id <= signal_id_n;")
+    mod.add_line("    end")
+    mod.add_line("end")
+
+    return mod
+
 def main():
     parser = argparse.ArgumentParser(description="Convert Coverage JSON to Synthesizable SystemVerilog")
     parser.add_argument("input_json", help="Path to the input JSON file")
@@ -392,7 +561,29 @@ def main():
 
     # Collect all modules (Leaf -> Root order)
     all_modules = []
+
+    # Add uart module
+    output_table = gen_output_table(top_mod)
+    fsm_mod = gen_cov_fsm(top_mod, output_table)
+    output_mod = gen_output_cg(top_mod, output_table)
+
+    top_mod.sub_modules.append((output_mod, "uart_out"))
+    top_mod.sub_modules.append((fsm_mod, "cov_fsm_inst"))
+
     collect_modules(top_mod, all_modules)
+
+    # bubble up inputs and outputs for uart
+    for name, width in output_mod.outputs.items():
+        if name not in top_mod.outputs:
+            top_mod.add_output(f"uart_out_{name}", width)
+
+    # bubble up inputs and outputs for cov_fsm
+    for name, width in fsm_mod.outputs.items():
+        if name not in top_mod.outputs:
+            top_mod.add_output(f"{name}", width)
+    for name, width in fsm_mod.inputs.items():
+        if name not in top_mod.inputs:
+            top_mod.add_input(f"{name}", width)
 
     # Write to file
     with open(args.output_sv, 'w') as f:
@@ -402,6 +593,7 @@ def main():
         for mod in all_modules:
             f.write(mod.generate_sv())
             f.write("\n")
+        
             
     print(f"Successfully generated {args.output_sv}")
 
