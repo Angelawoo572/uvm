@@ -1,0 +1,22 @@
+// Example1-Basic Constraints (normalized)
+
+// 1. class constraint from reset_req_item
+constraint force_rst { rst_n == 1'b0; };
+
+// 2. inline constraints from config_seq (mode0)
+constraint cfg_mode0_rst_n { rst_n == 1'b1; };
+constraint cfg_mode0_addr_i { addr_i == 4; };
+constraint cfg_mode0_we { we == 1'b1; };
+constraint cfg_mode0_re { re == 1'b0; };
+
+// 3. inline constraints from config_seq (mode1)
+constraint cfg_mode1_rst_n { rst_n == 1'b1; };
+constraint cfg_mode1_addr_i { addr_i == 8; };
+constraint cfg_mode1_we { we == 1'b1; };
+constraint cfg_mode1_re { re == 1'b0; };
+
+// 4. inline constraints from config_seq (mode2)
+constraint cfg_mode2_rst_n { rst_n == 1'b1; };
+constraint cfg_mode2_addr_i { addr_i == 12; };
+constraint cfg_mode2_we { we == 1'b1; };
+constraint cfg_mode2_re { re == 1'b0; };

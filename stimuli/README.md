@@ -5,6 +5,10 @@
 uv run stimuli_fsm\main.py [constraint text file (e.g. constraints.txt)] [output directory (e.g. test/)]
 ```
 
+**TODO**:
+- Make sure instantiation bounds are correct
+- Check compare ('outside' range)
+
 ## The 5 Basic Types:
 1. Bounded range:
 ```

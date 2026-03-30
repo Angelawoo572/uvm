@@ -1,0 +1,15 @@
+# constraint_id|constraint_type|constraint|module_name|lower_bound|upper_bound
+0|reserved|solver_output[0] = lfsr_output|N/A|0|4294967295
+1|assign|constraint force_rst { rst_n == 1'b0; };|rst_n_assign_module|0|4294967295
+2|assign|constraint cfg_mode0_rst_n { rst_n == 1'b1; };|rst_n_assign_module|0|4294967295
+3|assign|constraint cfg_mode0_addr_i { addr_i == 4; };|addr_i_assign_module|0|4294967295
+4|assign|constraint cfg_mode0_we { we == 1'b1; };|we_assign_module|0|4294967295
+5|assign|constraint cfg_mode0_re { re == 1'b0; };|re_assign_module|0|4294967295
+6|assign|constraint cfg_mode1_rst_n { rst_n == 1'b1; };|rst_n_assign_module|0|4294967295
+7|assign|constraint cfg_mode1_addr_i { addr_i == 8; };|addr_i_assign_module|0|4294967295
+8|assign|constraint cfg_mode1_we { we == 1'b1; };|we_assign_module|0|4294967295
+9|assign|constraint cfg_mode1_re { re == 1'b0; };|re_assign_module|0|4294967295
+10|assign|constraint cfg_mode2_rst_n { rst_n == 1'b1; };|rst_n_assign_module|0|4294967295
+11|assign|constraint cfg_mode2_addr_i { addr_i == 12; };|addr_i_assign_module|0|4294967295
+12|assign|constraint cfg_mode2_we { we == 1'b1; };|we_assign_module|0|4294967295
+13|assign|constraint cfg_mode2_re { re == 1'b0; };|re_assign_module|0|4294967295
