@@ -18,6 +18,6 @@ localparam [DATA_WIDTH-1:0] MODE0_TYPE2 = 111;
 localparam [DATA_WIDTH-1:0] MODE1_HIGH = '1;
 localparam [DATA_WIDTH-1:0] MODE1_LOW = '0;
 
-localparam [DATA_WIDTH-1:0] MODE2_SHORT = 'hA;
-localparam [DATA_WIDTH-1:0] MODE2_LONG = 'hF;
-localparam [DATA_WIDTH-1:0] MODE2_AVERAGE = 'hC;
+localparam [DATA_WIDTH-1:0] MODE2_SHORT = DATA_WIDTH'('hA);
+localparam [DATA_WIDTH-1:0] MODE2_LONG = DATA_WIDTH'('hF);
+localparam [DATA_WIDTH-1:0] MODE2_AVERAGE = DATA_WIDTH'('hC);

@@ -7,7 +7,7 @@ interface itf (input bit clk);
 	logic we; // active 1 write enable
 	logic [ADDR_WIDTH-1:0] addr_i; // address input
 	logic [DATA_WIDTH-1:0] data_i; // data input
-	logic [DATA_WIDTH-1:0] data_o; // data input
+	logic [DATA_WIDTH-1:0] data_o; // data output
 	logic [ARRAY_SIZE-1:0] valid;
 
 	// input means signal can only be sampled

@@ -85,6 +85,11 @@ class config_seq extends uvm_sequence;
 		start_item(req);
 		if (!req.randomize() with {rst_n==1; addr_i==MODE2_OFFSET; we==1; re==0; data_i==MODE2_SHORT;}) begin `uvm_error(get_type_name, "Failed to randomize sequence item") end
 		finish_item(req);
+
+		req = req_item::type_id::create("req");
+		start_item(req);
+		if (!req.randomize() with {rst_n==1; addr_i==ARRAY_OFFSET; we==1; re==0; data_i==123;}) begin `uvm_error(get_type_name, "Failed to randomize sequence item") end
+		finish_item(req);
         endtask
 endclass: config_seq
 
@@ -98,7 +103,6 @@ class read_seq extends uvm_sequence;
         req_item req;
 
         virtual task body();
-
 		`uvm_do_with(req, {rst_n==1; addr_i==MODE0_OFFSET; we==0; re==1;})
 		`uvm_do_with(req, {rst_n==1; addr_i==MODE1_OFFSET; we==0; re==1;})
 		`uvm_do_with(req, {rst_n==1; addr_i==MODE2_OFFSET; we==0; re==1;})
@@ -106,6 +110,25 @@ class read_seq extends uvm_sequence;
 		`uvm_do_with(req, {rst_n==1; addr_i==ARRAY_OFFSET+3; we==0; re==1;})
 	endtask
 endclass: read_seq
+
+class write_then_read extends uvm_sequence;
+        `uvm_object_utils(write_then_read)
+
+        function new(string name = "read_seq");
+                super.new(name);
+        endfunction: new
+
+        req_item req;
+
+        virtual task body();
+		`uvm_do_with(req, {rst_n==1; addr_i==MODE2_OFFSET; data_i == MODE2_SHORT; we==1; re==0;})
+		`uvm_do_with(req, {rst_n==1; addr_i==MODE2_OFFSET; we==0; re==1;})
+		`uvm_do_with(req, {rst_n==1; addr_i==MODE2_OFFSET; data_i == MODE2_LONG; we==1; re==0;})
+		`uvm_do_with(req, {rst_n==1; addr_i==MODE2_OFFSET; we==0; re==1;})
+		`uvm_do_with(req, {rst_n==1; addr_i==MODE2_OFFSET; data_i == MODE2_AVERAGE; we==1; re==0;})
+		`uvm_do_with(req, {rst_n==1; addr_i==MODE2_OFFSET; we==0; re==1;})
+	endtask
+endclass: write_then_read
 
 class change_mode_seq extends uvm_sequence #(req_item, rsp_item); // specialization is needed for this case
         `uvm_object_utils(change_mode_seq)
@@ -148,6 +171,7 @@ class reset_then_config_vseq extends uvm_sequence;
         config_seq cfg;
 	change_mode_seq change;
 	read_seq read;
+	write_then_read wtr;
 
         virtual task body();
 		`uvm_do(rst)
@@ -157,6 +181,7 @@ class reset_then_config_vseq extends uvm_sequence;
 		`uvm_do(change)
 		`uvm_do(change)
 		`uvm_do(read)
+		`uvm_do(wtr)
 	endtask
 endclass: reset_then_config_vseq
 	

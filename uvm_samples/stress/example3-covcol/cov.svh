@@ -1,14 +1,14 @@
 // example of a cg outside the class, this allows for it to become a data type
-// that can be instantiated with any name many times
+// that can be instantiated (with any name) many times
 
 `include "constants.svh"
 
 covergroup addr_cg (ref bit [ADDR_WIDTH-1:0] addr);
 	option.per_instance = 1 ;
 	cp_addr : coverpoint addr {
-		bins MODE0 = MODE0_OFFSET;
-		bins MODE1 = MODE1_OFFSET;
-		bins MODE2 = MODE2_OFFSET;
+		bins MODE0 = {MODE0_OFFSET};
+		bins MODE1 = {MODE1_OFFSET};
+		bins MODE2 = {MODE2_OFFSET};
 		bins ARRAY = {[ARRAY_OFFSET:ARRAY_OFFSET_CEILING]};
 		bins other_addresses = default; // any other address
 	}
@@ -18,7 +18,8 @@ endgroup
 // TODO example that uses automatic ranging
 // TODO example that does crosses
 // TODO at least use case
-
+// use of dollar for bin ceiling bins debug_all_values[] = { [0:$] }; 
+ 
 class cov extends uvm_subscriber #(full_item);
 	`uvm_component_utils(cov)
 
@@ -40,13 +41,13 @@ class cov extends uvm_subscriber #(full_item);
 	}
 	endgroup
 
-	covergroup mode2_cg with function sample(bit [DATA_WIDTH-1:0] data);
+	covergroup mode2_cg with function sample(logic [DATA_WIDTH-1:0] datai);
 		// option per instance is ommited, this means default of
 		// 0 should be assumed
-		cp_data : coverpoint data {
-			bins short = MODE2_SHORT;
-			bins long = MODE2_LONG;
-			bins average = MODE2_AVERAGE;
+		cp_data : coverpoint datai {
+			bins short = {MODE2_SHORT};
+			bins long = {MODE2_LONG};
+			bins average = {MODE2_AVERAGE};
 			bins otherstuff = default; // catches any other value, puts them in here
 		}
 	endgroup
@@ -61,6 +62,7 @@ class cov extends uvm_subscriber #(full_item);
 
 	function void write(full_item t); // must be named "t", because write() is a pure function that already has t name
 		this.item = t;
+		//cast(this.item, t.clone());
 		local_addr = item.req.addr_i;
 
 		item.req.print();
@@ -76,6 +78,7 @@ class cov extends uvm_subscriber #(full_item);
 		if (item.req.re) begin // is a read...
 			if (item.req.addr_i == MODE2_OFFSET) begin // ... to MODE2 register
 				mode2_cg.sample(item.rsp.data_o);
+				$display("%b %b ", item.rsp.data_o, MODE2_SHORT);
 			end
 		end
 
