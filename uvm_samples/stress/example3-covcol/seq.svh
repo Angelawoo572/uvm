@@ -90,6 +90,11 @@ class config_seq extends uvm_sequence;
 		start_item(req);
 		if (!req.randomize() with {rst_n==1; addr_i==ARRAY_OFFSET; we==1; re==0; data_i==123;}) begin `uvm_error(get_type_name, "Failed to randomize sequence item") end
 		finish_item(req);
+
+		req = req_item::type_id::create("req");
+		start_item(req);
+		if (!req.randomize() with {rst_n==1; addr_i==ARRAY_OFFSET+4; we==1; re==0; data_i==321;}) begin `uvm_error(get_type_name, "Failed to randomize sequence item") end
+		finish_item(req);
         endtask
 endclass: config_seq
 
@@ -107,6 +112,8 @@ class read_seq extends uvm_sequence;
 		`uvm_do_with(req, {rst_n==1; addr_i==MODE1_OFFSET; we==0; re==1;})
 		`uvm_do_with(req, {rst_n==1; addr_i==MODE2_OFFSET; we==0; re==1;})
 		`uvm_do_with(req, {rst_n==1; addr_i==ARRAY_OFFSET; we==0; re==1;})
+		`uvm_do_with(req, {rst_n==1; addr_i==ARRAY_OFFSET+1; we==0; re==1;})
+		`uvm_do_with(req, {rst_n==1; addr_i==ARRAY_OFFSET+2; we==0; re==1;})
 		`uvm_do_with(req, {rst_n==1; addr_i==ARRAY_OFFSET+3; we==0; re==1;})
 	endtask
 endclass: read_seq
@@ -114,7 +121,7 @@ endclass: read_seq
 class write_then_read extends uvm_sequence;
         `uvm_object_utils(write_then_read)
 
-        function new(string name = "read_seq");
+        function new(string name = "write_then_read");
                 super.new(name);
         endfunction: new
 
