@@ -1,14 +1,5 @@
 # Stimuli Generation 
 
-**Usage**:
-```
-uv run stimuli_fsm\main.py [constraint text file (e.g. constraints.txt)] [output directory (e.g. test/)]
-```
-
-**TODO**:
-- Make sure instantiation bounds are correct
-- Check compare ('outside' range)
-
 ## The 5 Basic Types:
 1. Bounded range:
 ```
@@ -48,13 +39,46 @@ constraint within_range {
     start_addr[1:0] == 0; // 100
 }
 ```
+```
+constraint target_bank_c {
+    addr inside {[32'h8000_0000 : 32'hBFFF_FFFF]}; 
+    addr[2:0] == 3'b000; 
+    addr[9:8] == 2'b10; 
+}
+```
 Solver logic ideas:
 ```
-- (Optional) Extract number of constraints applied to every rand variable
+1. Parser does some pre-processing
+    - Extract number of constraints applied to every rand variable
+    - Find number of bits not constrained/assigned
+
 - New bound = [min >> short_bit : max >> short_bit] --> (output << short_bit || short_val) // in this case short_bit = 2, short_val == 2'b0
 - Provide error handling for when no solution is found
 ```
-2. Ordered constraints:
+2. Constraints with multiple ranges:
+```
+constraint disjoint_ranges {
+  (val >= 0 && val <= 10) || (val >= 90 && val <= 100);
+}
+```
+```
+constraint range_limit {
+  addr inside {[0:63]}; 
+}
+constraint exclude_reserved {
+  !(addr inside {[16:31]}); 
+}
+```
+```
+constraint iter_count_c {
+    iteration_count inside {[1:10]}; // (1, 10)
+}
+constraint iter_count_short_c {
+    iteration_count < 5; // (0, 4) 
+}
+```
+
+3. Ordered constraints:
 ```
 constraint within_range { 
     start_addr < (32'h0104_0000 - block_size*4);
@@ -75,7 +99,7 @@ Solver logic ideas:
 - Seq <-> stim FSM should provide additional inputs (e.g. block_size, opcode) to solver module
 ```
 
-3. Two rand variables:
+4. Two rand variables:
 ```
 constraint size_c { tkeep.size() == tdata.size(); }
 ```
