@@ -20,6 +20,8 @@ from typing import Any, Dict, List, Optional, Tuple
 #         - randomization calls (handle.randomize(), randomize(handle))
 #         - finish points (finish_item(handle), wait_for_item_done(), etc.)
 #         - macro shorthands (`uvm_do / `uvm_create / `uvm_send) via token inspection
+#         - inline randomize-with constraints in the form: constraints inline_N { ... }
+#
 # The output is an event trace that shows where sequence items are started and how they are used.
 #
 # To run:
@@ -36,6 +38,7 @@ class FlowEvent:
     handle_type: Optional[str]  # "apb_seq_item"
     text: str              # reconstructed statement / call text (single line)
     path: str = ""         # condition / loop context, e.g. "while() & if(cond)"
+    constraint_text: Optional[str] = None
 
 
 @dataclass
@@ -46,100 +49,14 @@ class SequenceFlow:
     events: List[FlowEvent] = field(default_factory=list)
 
 
-#Create path stack from walking the body
+# -----------------------------
+# Path helpers
+# -----------------------------
 def _path_from_stack(cond_stack: List[str]) -> str:
     if not cond_stack:
         return ""
     return " & ".join(cond_stack)
 
-# Handle if and while in _walk_procedural
-def _walk_expr_for_randomize(
-    expr: Any,
-    handle_types: Dict[str, str],
-    events: List[FlowEvent],
-    cond_stack: List[str],
-) -> None:
-    """
-    Search an expression tree for randomize(...) or <handle>.randomize(...)
-    and emit FlowEvents for them.
-    """
-    if isinstance(expr, dict):
-        if expr.get("kind") == "InvocationExpression":
-            call = _extract_invocation_name(expr)
-            if call == "randomize":
-                # method form: txn.randomize()
-                handle = _extract_randomize_handle_from_invocation(expr) or _extract_first_arg_identifier(expr)
-                txt = _minify_ws(_collect_tokens(expr))
-                events.append(
-                    FlowEvent(
-                        kind="randomize",
-                        handle=handle,
-                        handle_type=handle_types.get(handle),
-                        text=txt,
-                        path=_path_from_stack(cond_stack),
-                    )
-                )
-        # recurse
-        for v in expr.values():
-            _walk_expr_for_randomize(v, handle_types, events, cond_stack)
-    elif isinstance(expr, list):
-        for x in expr:
-            _walk_expr_for_randomize(x, handle_types, events, cond_stack)
-
-
-# helper to get a simple name from either Identifier or IdentifierName
-def _get_name_from_proto_name(node: Any) -> Optional[str]:
-    """Handle both ScopedName and simple Identifier/IdentifierName."""
-    if not isinstance(node, dict):
-        return None
-    k = node.get("kind")
-    if k == "ScopedName":
-        # handled elsewhere
-        return None
-    # IdentifierName form
-    if k == "IdentifierName":
-        return _get_identifier_from_identifiername(node)
-    # Plain Identifier form
-    txt = node.get("text")
-    if isinstance(txt, str):
-        return txt
-    return None
-
-# Helper: collect sequence-item handles at class scope
-def _collect_class_item_handles(
-    class_decl: Dict[str, Any],
-    item_type: Optional[str],
-) -> Dict[str, str]:
-    """
-    Look for DataDeclaration nodes at class scope whose type matches item_type.
-    Returns { handle_name -> type_name }.
-    We intentionally do NOT recurse into tasks/functions here.
-    """
-    handles: Dict[str, str] = {}
-
-    def walk(node: Any):
-        if isinstance(node, dict):
-            k = node.get("kind")
-            # Don't look inside methods
-            if k in ("TaskDeclaration", "FunctionDeclaration"):
-                return
-
-            if k == "DataDeclaration":
-                ht = _extract_decl_handle_and_type(node)
-                if ht:
-                    handle, type_name = ht
-                    # If we know the item_type, filter by it; otherwise keep everything
-                    if item_type is None or type_name == item_type:
-                        handles.setdefault(handle, type_name)
-
-            for v in node.values():
-                walk(v)
-        elif isinstance(node, list):
-            for i in node:
-                walk(i)
-
-    walk(class_decl)
-    return handles
 
 # -----------------------------
 # CST JSON token helpers
@@ -170,7 +87,31 @@ def _collect_tokens(node: Any) -> str:
 def _minify_ws(s: str) -> str:
     """One-line, stable rendering for statements."""
     s = s.replace("\r\n", "\n")
-    s = re.sub(r"(?m)^\s*//.*\n?", "", s)     # drop full-line comments
+    s = re.sub(r"(?m)^\s*//.*\n?", "", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def _normalize_constraint_body(s: str) -> str:
+    s = s.replace("\r\n", "\n")
+    s = re.sub(r"(?m)^\s*//.*\n?", "", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    s = re.sub(r"\s*==\s*", " == ", s)
+    s = re.sub(r"\s*!=\s*", " != ", s)
+    s = re.sub(r"\s*>=\s*", " >= ", s)
+    s = re.sub(r"\s*<=\s*", " <= ", s)
+    s = re.sub(r"\s*&&\s*", " && ", s)
+    s = re.sub(r"\s*\|\|\s*", " || ", s)
+    s = re.sub(r"\s*:=\s*", " := ", s)
+
+    # Avoid breaking slices / ranges like [7:4] or {[11:20]}
+    s = re.sub(r"(?<!\[)\s*:\s*(?!\])", " : ", s)
+
+    # Comparison operators after generic spacing cleanup
+    s = re.sub(r"(?<![<>=!])\s*>\s*(?![=])", " > ", s)
+    s = re.sub(r"(?<![<])\s*<\s*(?![=])", " < ", s)
+
+    s = re.sub(r"(\d)\s+'([bodhBODH])", r"\1'\2", s)
     s = re.sub(r"\s+", " ", s).strip()
     return s
 
@@ -194,13 +135,159 @@ def _extract_scoped_name_text(node: Any) -> Optional[str]:
 
 
 def _extract_simple_identifier_text(node: Any) -> Optional[str]:
-    # For nodes like {"kind":"Identifier", "text":"apb_seq"}
     if not isinstance(node, dict):
         return None
     txt = node.get("text")
     if isinstance(txt, str):
         return txt
     return None
+
+
+def _extract_randomize_with_constraint(inv: Dict[str, Any]) -> Optional[str]:
+    """
+    Search the invocation subtree for a randomize-with constraint block and
+    return normalized contents without outer braces.
+    """
+    found_text: Optional[str] = None
+
+    def walk(node: Any):
+        nonlocal found_text
+        if found_text is not None:
+            return
+
+        if isinstance(node, dict):
+            kind = node.get("kind", "")
+
+            # Prefer explicit "with" related nodes
+            if "With" in kind or kind in {
+                "ConstraintBlock",
+                "ConstraintExpression",
+                "ConstraintSet",
+                "ConstraintBlockItem",
+            }:
+                txt = _minify_ws(_collect_tokens(node))
+                if "{" in txt and "}" in txt:
+                    found_text = txt
+                    return
+
+            for v in node.values():
+                walk(v)
+
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    walk(inv)
+
+    if not found_text:
+        txt = _minify_ws(_collect_tokens(inv))
+        m = re.search(r"\bwith\s*\{(.*)\}\s*$", txt)
+        if m:
+            found_text = "{" + m.group(1).strip() + "}"
+
+    if not found_text:
+        return None
+
+    txt = found_text.strip()
+    if txt.startswith("{") and txt.endswith("}"):
+        txt = txt[1:-1].strip()
+    else:
+        m = re.search(r"\{(.*)\}", txt)
+        if m:
+            txt = m.group(1).strip()
+
+    txt = _normalize_constraint_body(txt)
+    if txt and not txt.endswith(";"):
+        txt += ";"
+    return txt or None
+
+# -----------------------------
+# Expression randomize walker
+# -----------------------------
+def _walk_expr_for_randomize(
+    expr: Any,
+    handle_types: Dict[str, str],
+    events: List[FlowEvent],
+    cond_stack: List[str],
+) -> None:
+    """
+    Search an expression tree for randomize(...) or <handle>.randomize(...)
+    and emit FlowEvents for them.
+    """
+    if isinstance(expr, dict):
+        if expr.get("kind") == "InvocationExpression":
+            call = _extract_invocation_name(expr)
+            if call == "randomize":
+                handle = _extract_randomize_handle_from_invocation(expr) or _extract_first_arg_identifier(expr)
+                txt = _minify_ws(_collect_tokens(expr))
+                constraint_text = _extract_randomize_with_constraint(expr)
+                events.append(
+                    FlowEvent(
+                        kind="randomize",
+                        handle=handle,
+                        handle_type=handle_types.get(handle),
+                        text=txt,
+                        path=_path_from_stack(cond_stack),
+                        constraint_text=constraint_text,
+                    )
+                )
+        for v in expr.values():
+            _walk_expr_for_randomize(v, handle_types, events, cond_stack)
+    elif isinstance(expr, list):
+        for x in expr:
+            _walk_expr_for_randomize(x, handle_types, events, cond_stack)
+
+
+# -----------------------------
+# Helper: names and class-scope item handles
+# -----------------------------
+def _get_name_from_proto_name(node: Any) -> Optional[str]:
+    """Handle both ScopedName and simple Identifier/IdentifierName."""
+    if not isinstance(node, dict):
+        return None
+    k = node.get("kind")
+    if k == "ScopedName":
+        return None
+    if k == "IdentifierName":
+        return _get_identifier_from_identifiername(node)
+    txt = node.get("text")
+    if isinstance(txt, str):
+        return txt
+    return None
+
+
+def _collect_class_item_handles(
+    class_decl: Dict[str, Any],
+    item_type: Optional[str],
+) -> Dict[str, str]:
+    """
+    Look for DataDeclaration nodes at class scope whose type matches item_type.
+    Returns { handle_name -> type_name }.
+    We intentionally do NOT recurse into tasks/functions here.
+    """
+    handles: Dict[str, str] = {}
+
+    def walk(node: Any):
+        if isinstance(node, dict):
+            k = node.get("kind")
+            if k in ("TaskDeclaration", "FunctionDeclaration"):
+                return
+
+            if k == "DataDeclaration":
+                ht = _extract_decl_handle_and_type(node)
+                if ht:
+                    handle, type_name = ht
+                    if item_type is None or type_name == item_type:
+                        handles.setdefault(handle, type_name)
+
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for i in node:
+                walk(i)
+
+    walk(class_decl)
+    return handles
 
 
 # -----------------------------
@@ -261,7 +348,7 @@ def _find_sequence_classes(cst: Dict[str, Any]) -> Dict[str, Optional[str]]:
 
 
 # -----------------------------
-# Macro detection (uvm_do / uvm_create / uvm_send)
+# Macro detection
 # -----------------------------
 _UVM_MACROS = {
     "`uvm_do",
@@ -285,6 +372,13 @@ _UVM_MACROS = {
     "`uvm_object_utils",
 }
 
+def _macro_event_kind(macro: str) -> Optional[str]:
+    if macro == "`uvm_do":
+        return "DO"
+    if macro == "`uvm_do_with":
+        return "DO_WITH"
+    return None
+
 def _macro_uses_item_handle(macro: str) -> bool:
     return macro in {
         "`uvm_do",
@@ -302,7 +396,21 @@ def _macro_uses_item_handle(macro: str) -> bool:
         "`uvm_rand_send",
         "`uvm_rand_send_with",
     }
-# https://verificationacademy.com/verification-methodology-reference/uvm/docs_1.1b/html/files/macros/uvm_sequence_defines-svh.html
+
+def _extract_constraint_from_macro_args(macro: str, macro_args: List[str]) -> Optional[str]:
+    if macro != "`uvm_do_with":
+        return None
+    if len(macro_args) < 2:
+        return None
+
+    txt = macro_args[1].strip()
+    if txt.startswith("{") and txt.endswith("}"):
+        txt = txt[1:-1].strip()
+
+    txt = _normalize_constraint_body(txt)
+    if txt and not txt.endswith(";"):
+        txt += ";"
+    return txt or None
 
 def _token_text_list(tokens: Any) -> List[str]:
     out: List[str] = []
@@ -312,22 +420,15 @@ def _token_text_list(tokens: Any) -> List[str]:
                 out.append(t["text"])
     return out
 
+
 def _macro_arg_text(arg: Dict[str, Any]) -> str:
-    """
-    Convert one MacroActualArgument to a compact string.
-    """
     if not isinstance(arg, dict):
         return ""
     toks = arg.get("tokens")
     return _minify_ws("".join(_token_text_list(toks)))
 
+
 def _extract_first_identifier_from_macro_arg(arg: Dict[str, Any]) -> Optional[str]:
-    """
-    For macro calls like:
-      `uvm_create(req)
-      `uvm_do_with(req, { ... })
-    return 'req' from the first MacroActualArgument if possible.
-    """
     if not isinstance(arg, dict):
         return None
     toks = arg.get("tokens")
@@ -397,12 +498,8 @@ def _extract_macro_usage_info_from_trivia_item(triv: Dict[str, Any]) -> Optional
     }
 
 
+
 def _macro_implied_event_kinds(macro: str) -> List[str]:
-    """
-    Map UVM sequence macros to the flow events they imply.
-    Logging / registration macros are still reported as [macro],
-    but do not imply create/start/finish/randomize.
-    """
     if macro in {"`uvm_create", "`uvm_create_on"}:
         return ["create"]
 
@@ -426,6 +523,7 @@ def _macro_implied_event_kinds(macro: str) -> List[str]:
 
     return []
 
+
 def _emit_macros_from_child_trivia(
     node: Dict[str, Any],
     child_keys: List[str],
@@ -436,84 +534,68 @@ def _emit_macros_from_child_trivia(
     if not isinstance(node, dict):
         return
 
+    def handle_trivia_list(trivia: Any):
+        if not isinstance(trivia, list):
+            return
+
+        for triv in trivia:
+            info = _extract_macro_usage_info_from_trivia_item(triv)
+            if not info:
+                continue
+
+            macro = info["macro"]
+            if macro not in _UVM_MACROS:
+                continue
+
+            handle = info["handle"]
+            raw = info["raw"]
+            handle_type = handle_types.get(handle) if handle else None
+            implied = _macro_implied_event_kinds(macro)
+            macro_kind = _macro_event_kind(macro)
+
+            if macro_kind is not None:
+                events.append(
+                    FlowEvent(
+                        kind=macro_kind,
+                        handle=handle,
+                        handle_type=handle_type,
+                        text=raw,
+                        path=_path_from_stack(cond_stack),
+                        constraint_text=_extract_constraint_from_macro_args(macro, info["args"]),
+                    )
+                )
+            elif not implied:
+                events.append(
+                    FlowEvent(
+                        kind="macro",
+                        handle=handle,
+                        handle_type=handle_type,
+                        text=raw,
+                        path=_path_from_stack(cond_stack),
+                    )
+                )
+            else:
+                for implied_kind in implied:
+                    events.append(
+                        FlowEvent(
+                            kind=implied_kind,
+                            handle=handle,
+                            handle_type=handle_type,
+                            text=f"{raw} [from {macro}]",
+                            path=_path_from_stack(cond_stack),
+                        )
+                    )
     for key in child_keys:
         child = node.get(key)
 
         if isinstance(child, dict):
-            trivia = child.get("trivia")
-            if isinstance(trivia, list):
-                for triv in trivia:
-                    info = _extract_macro_usage_info_from_trivia_item(triv)
-                    if not info:
-                        continue
-
-                    macro = info["macro"]
-                    if macro not in _UVM_MACROS:
-                        continue
-
-                    handle = info["handle"]
-                    raw = info["raw"]
-                    handle_type = handle_types.get(handle) if handle else None
-
-                    events.append(
-                        FlowEvent(
-                            kind="macro",
-                            handle=handle,
-                            handle_type=handle_type,
-                            text=raw,
-                            path=_path_from_stack(cond_stack),
-                        )
-                    )
-
-                    for implied_kind in _macro_implied_event_kinds(macro):
-                        events.append(
-                            FlowEvent(
-                                kind=implied_kind,
-                                handle=handle,
-                                handle_type=handle_type,
-                                text=f"{raw} [from {macro}]",
-                                path=_path_from_stack(cond_stack),
-                            )
-                        )
+            handle_trivia_list(child.get("trivia"))
 
         elif isinstance(child, list):
             for elem in child:
                 if isinstance(elem, dict):
-                    trivia = elem.get("trivia")
-                    if isinstance(trivia, list):
-                        for triv in trivia:
-                            info = _extract_macro_usage_info_from_trivia_item(triv)
-                            if not info:
-                                continue
+                    handle_trivia_list(elem.get("trivia"))
 
-                            macro = info["macro"]
-                            if macro not in _UVM_MACROS:
-                                continue
-
-                            handle = info["handle"]
-                            raw = info["raw"]
-                            handle_type = handle_types.get(handle) if handle else None
-
-                            events.append(
-                                FlowEvent(
-                                    kind="macro",
-                                    handle=handle,
-                                    handle_type=handle_type,
-                                    text=raw,
-                                    path=_path_from_stack(cond_stack),
-                                )
-                            )
-
-                            for implied_kind in _macro_implied_event_kinds(macro):
-                                events.append(
-                                    FlowEvent(
-                                        kind=implied_kind,
-                                        handle=handle,
-                                        handle_type=handle_type,
-                                        text=f"{raw} [from {macro}]",
-                                        path=_path_from_stack(cond_stack),
-                                    )
-                                )
 
 # -----------------------------
 # Call and handle extraction helpers
@@ -593,11 +675,10 @@ def _statement_text(node: Any) -> str:
 
 
 # -----------------------------
-# Recursive procedural traversal
+# Procedural traversal
 # -----------------------------
 _START_CALLS = {"start_item", "send_request", "uvm_send", "send"}
 _FINISH_CALLS = {"finish_item", "wait_for_item_done", "item_done"}
-# "randomize" is handled specially because it can be method-call or function-call.
 _RANDOMIZE_CALLS = {"randomize"}
 
 
@@ -648,18 +729,14 @@ def _walk_procedural(
 
     if isinstance(node, dict):
         kind = node.get("kind")
-        # -------------------------
-        # While loop: LoopStatement + WhileKeyword
-        # -------------------------
+
         if kind == "SequentialBlockStatement":
             _emit_macros_from_child_trivia(node, ["begin"], handle_types, events, cond_stack)
-
-            # walk block contents in order
             for v in node.values():
                 _walk_procedural(v, handle_types, events, cond_stack)
-
             _emit_macros_from_child_trivia(node, ["end"], handle_types, events, cond_stack)
             return
+
         if kind in ("TaskDeclaration", "FunctionDeclaration"):
             _emit_macros_from_child_trivia(node, ["prototype"], handle_types, events, cond_stack)
 
@@ -670,16 +747,15 @@ def _walk_procedural(
 
             _emit_macros_from_child_trivia(node, ["end"], handle_types, events, cond_stack)
             return
+
         if kind == "LoopStatement":
             rw = node.get("repeatOrWhile")
             if isinstance(rw, dict) and rw.get("kind") == "WhileKeyword":
-                # Condition is in "expr"
                 cond_expr = node.get("expr")
                 cond_txt = _minify_ws(_collect_tokens(cond_expr)) if cond_expr is not None else "<while-cond>"
 
-                body = node.get("statement")  # SequentialBlockStatement
+                body = node.get("statement")
                 if body is not None:
-                    # Walk body with while() context
                     _walk_procedural(
                         body,
                         handle_types,
@@ -687,7 +763,6 @@ def _walk_procedural(
                         cond_stack + [f"while({cond_txt})"],
                     )
 
-                # Optional: detect randomize calls inside the while condition itself
                 if cond_expr is not None:
                     _walk_expr_for_randomize(
                         cond_expr,
@@ -695,18 +770,13 @@ def _walk_procedural(
                         events,
                         cond_stack + [f"while({cond_txt})"],
                     )
-
                 return
-        # -------------------------
-        # If / else: ConditionalStatement
-        # -------------------------
+
         if kind == "ConditionalStatement":
             _emit_macros_from_child_trivia(node, ["ifKeyword"], handle_types, events, cond_stack)
             predicate = node.get("predicate")
-            # Use the whole predicate subtree to reconstruct a condition string
             cond_txt = _minify_ws(_collect_tokens(predicate)) if predicate is not None else "<if-cond>"
 
-            # Scan the predicate for randomize() calls (like !(txn.randomize() with {...}))
             if predicate is not None:
                 _walk_expr_for_randomize(
                     predicate,
@@ -716,9 +786,8 @@ def _walk_procedural(
                 )
 
             then_stmt = node.get("statement")
-            else_clause = node.get("elseClause")  # might be absent in alu_seq
+            else_clause = node.get("elseClause")
 
-            # THEN branch
             if then_stmt is not None:
                 _walk_procedural(
                     then_stmt,
@@ -727,7 +796,6 @@ def _walk_procedural(
                     cond_stack + [f"if({cond_txt})"],
                 )
 
-            # ELSE / ELSE-IF branch (if present)
             if isinstance(else_clause, dict):
                 else_stmt = else_clause.get("statement")
                 if else_stmt is not None:
@@ -737,12 +805,8 @@ def _walk_procedural(
                         events,
                         cond_stack + [f"else({cond_txt})"],
                     )
-
             return
-        
-        # -------------------------
-        # Handle declarations: alu_txn txn;
-        # -------------------------
+
         if kind == "DataDeclaration":
             ht = _extract_decl_handle_and_type(node)
             if ht:
@@ -758,14 +822,10 @@ def _walk_procedural(
                     )
                 )
 
-        # -------------------------
-        # Expression statements: assignments, calls, macros, etc.
-        # -------------------------
         if kind == "ExpressionStatement":
             expr = node.get("expr")
             stmt_txt = _statement_text(node)
 
-            # Assignment create: txn = T::type_id::create(...);
             if isinstance(expr, dict) and expr.get("kind") == "AssignmentExpression":
                 left = expr.get("left")
                 handle = _get_identifier_from_identifiername(left)
@@ -783,7 +843,6 @@ def _walk_procedural(
                             )
                         )
 
-            # Direct call: start_item(txn); finish_item(txn); randomize(txn); get_response(rsp);
             if isinstance(expr, dict) and expr.get("kind") == "InvocationExpression":
                 call = _extract_invocation_name(expr)
                 txt = stmt_txt
@@ -819,6 +878,7 @@ def _walk_procedural(
                             handle_type=handle_types.get(handle),
                             text=txt,
                             path=_path_from_stack(cond_stack),
+                            constraint_text=_extract_randomize_with_constraint(expr),
                         )
                     )
                 else:
@@ -832,16 +892,11 @@ def _walk_procedural(
                         )
                     )
 
-            # In all expression statements, scan for randomize() in the expr tree
             if expr is not None:
                 _walk_expr_for_randomize(expr, handle_types, events, cond_stack)
 
-        # -------------------------
-        # Immediate assert randomize (kept from your original)
-        # -------------------------
         if kind == "ImmediateAssertStatement":
             txt = _statement_text(node)
-
             inv: Optional[Dict[str, Any]] = None
 
             def find_inv(x: Any):
@@ -871,16 +926,18 @@ def _walk_procedural(
                             handle_type=handle_types.get(handle),
                             text=txt,
                             path=_path_from_stack(cond_stack),
+                            constraint_text=_extract_randomize_with_constraint(inv),
                         )
                     )
 
-        # Default recursion
         for v in node.values():
             _walk_procedural(v, handle_types, events, cond_stack)
 
     elif isinstance(node, list):
         for i in node:
             _walk_procedural(i, handle_types, events, cond_stack)
+
+
 
 # -----------------------------
 # Entry point: extract flows
@@ -891,33 +948,28 @@ def extract_sequence_flows_from_file(filepath: str) -> List[SequenceFlow]:
 
     seq_class_to_item = _find_sequence_classes(cst)
     flows: List[SequenceFlow] = []
-    class_item_handles: Dict[str, Dict[str, str]] = {}  # NEW
+    class_item_handles: Dict[str, Dict[str, str]] = {}
 
     def walk(x: Any, current_class: Optional[str] = None):
         if isinstance(x, dict):
             k = x.get("kind")
 
-            # Track which class we are in
             if k == "ClassDeclaration":
                 cls_name = _extract_simple_identifier_text(x.get("name"))
 
-                # If this class is a uvm_sequence, pre-collect its item handles
                 if cls_name and cls_name in seq_class_to_item:
                     item_type = seq_class_to_item[cls_name]
                     class_item_handles[cls_name] = _collect_class_item_handles(x, item_type)
 
-                # Recurse with this as the current_class
                 for v in x.values():
                     walk(v, current_class=cls_name)
                 return
 
-            # TaskDeclaration and FunctionDeclaration are both interesting.
             if k in ("TaskDeclaration", "FunctionDeclaration"):
                 proto = x.get("prototype")
                 if isinstance(proto, dict):
                     name_node = proto.get("name")
 
-                    # Case 1: scoped prototype like alu_seq::body
                     scoped = _extract_scoped_name_text(name_node)
                     seq_cls: Optional[str] = None
                     proc_name: Optional[str] = None
@@ -925,17 +977,14 @@ def extract_sequence_flows_from_file(filepath: str) -> List[SequenceFlow]:
                     if scoped and "::" in scoped:
                         seq_cls, proc_name = [p.strip() for p in scoped.split("::", 1)]
                     else:
-                        # Case 2: inline member task inside a class: task body();
                         if current_class is not None:
                             seq_cls = current_class
                             proc_name = _get_name_from_proto_name(name_node)
 
                     if seq_cls and proc_name and seq_cls in seq_class_to_item:
-                        # Start handle_types with the class-scope handles
                         handle_types: Dict[str, str] = dict(class_item_handles.get(seq_cls, {}))
                         events: List[FlowEvent] = []
 
-                        # Emit synthetic declare events for class-level handles (optional but nice)
                         for h, t in class_item_handles.get(seq_cls, {}).items():
                             events.append(
                                 FlowEvent(
@@ -947,7 +996,6 @@ def extract_sequence_flows_from_file(filepath: str) -> List[SequenceFlow]:
                                 )
                             )
 
-                        # Walk entire declaration subtree to catch nested begin/if/while/etc.
                         _walk_procedural(x, handle_types, events, cond_stack=[])
 
                         flows.append(
@@ -959,7 +1007,6 @@ def extract_sequence_flows_from_file(filepath: str) -> List[SequenceFlow]:
                             )
                         )
 
-            # Default recursion
             for v in x.values():
                 walk(v, current_class=current_class)
 
@@ -970,6 +1017,24 @@ def extract_sequence_flows_from_file(filepath: str) -> List[SequenceFlow]:
     walk(cst, current_class=None)
     return flows
 
+
+def _extract_constraint_from_path(path: str) -> Optional[str]:
+    """
+    Extract inline randomize-with constraint text from a path string like:
+      if(!req.randomize() with { rst_n==1; addr_i==MODE0_OFFSET; we==1; re==0;})
+    """
+    if not path:
+        return None
+
+    m = re.search(r"\bwith\s*\{(.*)\}\s*\)?\s*$", path)
+    if not m:
+        return None
+
+    txt = m.group(1).strip()
+    txt = _normalize_constraint_body(txt)
+    if txt and not txt.endswith(";"):
+        txt += ";"
+    return txt or None
 # -----------------------------
 # Output formatting
 # -----------------------------
@@ -985,12 +1050,17 @@ def _format_flows(flows: List[SequenceFlow], include_calls: bool = False) -> str
     for fl in flows:
         flows_by_seq.setdefault(fl.seq_class, []).append(fl)
 
+    first = True
     for seq in sorted(flows_by_seq.keys()):
+        if not first:
+            lines.append("")   # <-- blank line separator
+        first = False
         item = flows_by_seq[seq][0].item_type_param or "<unknown_item_type>"
         lines.append(f"  {seq} (uvm_sequence#({item}))")
 
         for fl in sorted(flows_by_seq[seq], key=lambda x: x.proc):
             lines.append(f"    {fl.proc}:")
+            inline_idx = 0
 
             for e in fl.events:
                 if not include_calls and e.kind in ("call",):
@@ -1004,7 +1074,14 @@ def _format_flows(flows: List[SequenceFlow], include_calls: bool = False) -> str
                 else:
                     lines.append(f"      [{e.kind}] {e.text}{path_suffix}")
 
+                if e.kind in ("randomize", "DO_WITH"):
+                    constraint_text = e.constraint_text or _extract_constraint_from_path(e.path)
+                    if constraint_text:
+                        inline_idx += 1
+                        lines.append(f"        constraints macro_inline_{inline_idx} {{ {constraint_text} }}")
+
     return "\n".join(lines)
+
 
 def write_summary(out_file: str, flows: List[SequenceFlow], include_calls: bool = False) -> None:
     with open(out_file, "w", encoding="utf-8") as f:
@@ -1017,7 +1094,7 @@ def write_summary(out_file: str, flows: List[SequenceFlow], include_calls: bool 
 # -----------------------------
 def default_out_path(input_file: str) -> str:
     base = os.path.splitext(os.path.basename(input_file))[0]
-    return f"{base}_summary.txt"
+    return f"{base}__seq_summary.txt"
 
 
 def main():
