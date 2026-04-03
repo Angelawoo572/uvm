@@ -1,0 +1,136 @@
+{
+  "component": {
+    "original_line": "class agt #(int DATA_WIDTH=32, int ADDR_WIDTH=16) extends uvm_agent;",
+    "name": "agt",
+    "base_type": "uvm_agent",
+    "class_parameters": [
+      { "name": "DATA_WIDTH", "default": "32", "type": "int" },
+      { "name": "ADDR_WIDTH", "default": "16", "type": "int" }
+    ],
+    "members": [
+      {
+        "original_line": "drv #(DATA_WIDTH, ADDR_WIDTH) m_drv;",
+        "type": "variable_declaration",
+        "data_type": "drv",
+        "parameters": [
+          { "name": "DATA_WIDTH", "value": "DATA_WIDTH" },
+          { "name": "ADDR_WIDTH", "value": "ADDR_WIDTH" }
+        ],
+        "name": "m_drv"
+      },
+      {
+        "original_line": "mon #(DATA_WIDTH, ADDR_WIDTH) m_mon;",
+        "type": "variable_declaration",
+        "data_type": "mon",
+        "parameters": [
+          { "name": "DATA_WIDTH", "value": "DATA_WIDTH" },
+          { "name": "ADDR_WIDTH", "value": "ADDR_WIDTH" }
+        ],
+        "name": "m_mon"
+      },
+      {
+        "original_line": "uvm_sequencer #(req_item) m_sqr;",
+        "type": "variable_declaration",
+        "data_type": "uvm_sequencer",
+        "parameters": [
+          { "name": "type", "value": "req_item" }
+        ],
+        "name": "m_sqr"
+      },
+      {
+        "original_line": "cov m_cov;",
+        "type": "variable_declaration",
+        "data_type": "cov",
+        "name": "m_cov"
+      },
+      {
+        "original_line": "function void build_phase(uvm_phase phase);",
+        "type": "function",
+        "name": "build_phase",
+        "arguments": [
+          { "name": "phase", "type": "uvm_phase" }
+        ],
+        "body": [
+          {
+            "original_line": "super.build_phase(phase);",
+            "type": "super_call",
+            "method": "build_phase",
+            "arguments": ["phase"]
+          },
+          {
+            "original_line": "m_drv = drv #(DATA_WIDTH, ADDR_WIDTH)::type_id::create(\"m_drv\", this);",
+            "type": "assignment",
+            "operator": "=",
+            "lhs": "m_drv",
+            "rhs": "drv #(DATA_WIDTH, ADDR_WIDTH)::type_id::create(\"m_drv\", this)"
+          },
+          {
+            "original_line": "m_mon = mon #(DATA_WIDTH, ADDR_WIDTH)::type_id::create(\"m_mon\", this);",
+            "type": "assignment",
+            "operator": "=",
+            "lhs": "m_mon",
+            "rhs": "mon #(DATA_WIDTH, ADDR_WIDTH)::type_id::create(\"m_mon\", this)"
+          },
+          {
+            "original_line": "m_sqr = uvm_sequencer #(req_item)::type_id::create(\"m_sqr\", this);",
+            "type": "assignment",
+            "operator": "=",
+            "lhs": "m_sqr",
+            "rhs": "uvm_sequencer #(req_item)::type_id::create(\"m_sqr\", this)"
+          },
+          {
+            "original_line": "m_cov = cov::type_id::create(\"m_cov\", this);",
+            "type": "assignment",
+            "operator": "=",
+            "lhs": "m_cov",
+            "rhs": "cov::type_id::create(\"m_cov\", this)"
+          },
+          {
+            "original_line": "`uvm_info (get_type_name(), $sformatf (\"end of build phase\"), UVM_NONE)",
+            "type": "macro_call",
+            "macro": "`uvm_info",
+            "arguments": [
+              "get_type_name()",
+              "$sformatf(\"end of build phase\")",
+              "UVM_NONE"
+            ]
+          }
+        ]
+      },
+      {
+        "original_line": "function void connect_phase(uvm_phase phase);",
+        "type": "function",
+        "name": "connect_phase",
+        "arguments": [
+          { "name": "phase", "type": "uvm_phase" }
+        ],
+        "body": [
+          {
+            "original_line": "m_drv.seq_item_port.connect(m_sqr.seq_item_export);",
+            "type": "method_call",
+            "caller": "m_drv.seq_item_port",
+            "method": "connect",
+            "arguments": ["m_sqr.seq_item_export"]
+          },
+          {
+            "original_line": "m_mon.m_cov_port.connect(m_cov.analysis_export);",
+            "type": "method_call",
+            "caller": "m_mon.m_cov_port",
+            "method": "connect",
+            "arguments": ["m_cov.analysis_export"]
+          },
+          {
+            "original_line": "`uvm_info (get_type_name(), $sformatf (\"end of connect phase\"), UVM_NONE)",
+            "type": "macro_call",
+            "macro": "`uvm_info",
+            "arguments": [
+              "get_type_name()",
+              "$sformatf(\"end of connect phase\")",
+              "UVM_NONE"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

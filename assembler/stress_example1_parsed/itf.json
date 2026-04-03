@@ -1,0 +1,89 @@
+{
+  "component": {
+    "name": "itf",
+    "base_type": "interface",
+    "ports": [
+      { "name": "clk", "direction": "input", "type": "bit" }
+    ],
+    "parameters": [
+      { "name": "ADDR_WIDTH", "default": "99", "type": "parameter" },
+      { "name": "DATA_WIDTH", "default": "99", "type": "parameter" }
+    ],
+    "members": [
+      {
+        "type": "variable_declaration",
+        "data_type": "bit",
+        "name": "rst_n"
+      },
+      {
+        "type": "variable_declaration",
+        "data_type": "logic",
+        "name": "re"
+      },
+      {
+        "type": "variable_declaration",
+        "data_type": "logic",
+        "name": "we"
+      },
+      {
+        "type": "variable_declaration",
+        "data_type": "logic [ADDR_WIDTH-1:0]",
+        "name": "addr_i"
+      },
+      {
+        "type": "variable_declaration",
+        "data_type": "logic [DATA_WIDTH-1:0]",
+        "name": "data_i"
+      },
+      {
+        "type": "variable_declaration",
+        "data_type": "logic [DATA_WIDTH-1:0]",
+        "name": "data_o"
+      },
+      {
+        "type": "clocking_block",
+        "name": "drv_cb",
+        "event": "posedge clk",
+        "body": [
+          {
+            "type": "default_skew",
+            "input_skew": "#1step",
+            "output_skew": "#1"
+          },
+          {
+            "type": "clocking_signals",
+            "direction": "output",
+            "signals": ["rst_n", "re", "we", "addr_i", "data_i"]
+          },
+          {
+            "type": "clocking_signals",
+            "direction": "input",
+            "signals": ["data_o"]
+          }
+        ]
+      },
+      {
+        "type": "clocking_block",
+        "name": "mon_cb",
+        "event": "posedge clk",
+        "body": [
+          {
+            "type": "default_skew",
+            "input_skew": "#1step",
+            "output_skew": "#1"
+          },
+          {
+            "type": "clocking_signals",
+            "direction": "input",
+            "signals": ["rst_n", "re", "we", "addr_i", "data_i"]
+          },
+          {
+            "type": "clocking_signals",
+            "direction": "input",
+            "signals": ["data_o"]
+          }
+        ]
+      }
+    ]
+  }
+}

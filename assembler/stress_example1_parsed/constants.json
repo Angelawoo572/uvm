@@ -1,0 +1,29 @@
+{
+  "local_parameters": [
+    {
+      "type": "localparam",
+      "name": "ADDR_WIDTH",
+      "value": "16"
+    },
+    {
+      "type": "localparam",
+      "name": "DATA_WIDTH",
+      "value": "32"
+    },
+    {
+      "type": "localparam",
+      "name": "MODE0_OFFSET",
+      "value": "4"
+    },
+    {
+      "type": "localparam",
+      "name": "MODE1_OFFSET",
+      "value": "8"
+    },
+    {
+      "type": "localparam",
+      "name": "MODE2_OFFSET",
+      "value": "12"
+    }
+  ]
+}

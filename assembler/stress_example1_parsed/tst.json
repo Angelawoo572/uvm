@@ -1,0 +1,86 @@
+{
+  "component": {
+    "name": "example1basic",
+    "base_type": "uvm_test",
+    "members": [
+      {
+        "type": "variable_declaration",
+        "data_type": "env",
+        "name": "m_env"
+      },
+      {
+        "type": "function",
+        "name": "build_phase",
+        "arguments": [
+          { "name": "phase", "type": "uvm_phase" }
+        ],
+        "body": [
+          {
+            "type": "super_call",
+            "method": "build_phase",
+            "arguments": ["phase"]
+          },
+          {
+            "type": "assignment",
+            "operator": "=",
+            "lhs": "m_env",
+            "rhs": "env::type_id::create(\"m_env\", this)"
+          },
+          {
+            "type": "macro_call",
+            "macro": "`uvm_info",
+            "arguments": [
+              "get_type_name()",
+              "$sformatf(\"build phase\")",
+              "UVM_NONE"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "task",
+        "name": "run_phase",
+        "arguments": [
+          { "name": "phase", "type": "uvm_phase" }
+        ],
+        "body": [
+          {
+            "type": "variable_declaration",
+            "data_type": "config_seq",
+            "name": "m_seq",
+            "initial_value": "config_seq::type_id::create(\"m_seq\")"
+          },
+          {
+            "type": "method_call",
+            "caller": "phase.phase_done",
+            "method": "set_drain_time",
+            "arguments": ["this", "20ns"]
+          },
+          {
+            "type": "super_call",
+            "method": "run_phase",
+            "arguments": ["phase"]
+          },
+          {
+            "type": "method_call",
+            "caller": "phase",
+            "method": "raise_objection",
+            "arguments": ["this"]
+          },
+          {
+            "type": "method_call",
+            "caller": "m_seq",
+            "method": "start",
+            "arguments": ["m_env.m_agt.m_sqr"]
+          },
+          {
+            "type": "method_call",
+            "caller": "phase",
+            "method": "drop_objection",
+            "arguments": ["this"]
+          }
+        ]
+      }
+    ]
+  }
+}

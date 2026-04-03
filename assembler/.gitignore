@@ -1,1 +1,3 @@
 *.sv
+*.txt
+old-assembler.py

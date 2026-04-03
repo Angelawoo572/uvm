@@ -1,0 +1,100 @@
+{
+  "component": {
+    "name": "drv",
+    "base_type": "uvm_driver",
+    "base_parameters": ["req_item"],
+    "class_parameters": [
+      { "name": "DATA_WIDTH", "default": "32", "type": "int" },
+      { "name": "ADDR_WIDTH", "default": "16", "type": "int" }
+    ],
+    "members": [
+      {
+        "type": "virtual_interface",
+        "name": "vif",
+        "interface_type": "itf",
+        "parameters": [
+          { "name": "DATA_WIDTH", "value": "DATA_WIDTH" },
+          { "name": "ADDR_WIDTH", "value": "ADDR_WIDTH" }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "build_phase",
+        "arguments": [
+          { "name": "phase", "type": "uvm_phase" }
+        ],
+        "body": [
+          {
+            "type": "super_call",
+            "method": "build_phase",
+            "arguments": ["phase"]
+          },
+          {
+            "type": "if",
+            "condition": "!uvm_config_db #(virtual itf #(.DATA_WIDTH(DATA_WIDTH), .ADDR_WIDTH(ADDR_WIDTH)))::get(null, \"tb\", \"vif\", vif)",
+            "true_branch": [
+              {
+                "type": "macro_call",
+                "macro": "`uvm_fatal",
+                "arguments": [
+                  "get_type_name()",
+                  "$sformatf(\"Virtual interface not found\")"
+                ]
+              }
+            ]
+          },
+          {
+            "type": "macro_call",
+            "macro": "`uvm_info",
+            "arguments": [
+              "get_type_name()",
+              "$sformatf(\"end of build phase\")",
+              "UVM_NONE"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "task",
+        "name": "run_phase",
+        "arguments": [
+          { "name": "phase", "type": "uvm_phase" }
+        ],
+        "body": [
+          {
+            "type": "variable_declaration",
+            "data_type": "req_item",
+            "name": "req"
+          },
+          {
+            "type": "loop",
+            "loop_type": "forever",
+            "children": [
+              {
+                "type": "method_call",
+                "caller": "seq_item_port",
+                "method": "get_next_item",
+                "arguments": ["req"]
+              },
+              {
+                "type": "event_control",
+                "event": "vif.drv_cb"
+              },
+              { "type": "assignment", "operator": "<=", "lhs": "vif.drv_cb.addr_i", "rhs": "req.addr_i" },
+              { "type": "assignment", "operator": "<=", "lhs": "vif.drv_cb.data_i", "rhs": "req.data_i" },
+              { "type": "assignment", "operator": "<=", "lhs": "vif.drv_cb.re", "rhs": "req.re" },
+              { "type": "assignment", "operator": "<=", "lhs": "vif.drv_cb.we", "rhs": "req.we" },
+              { "type": "assignment", "operator": "<=", "lhs": "vif.drv_cb.rst_n", "rhs": "req.rst_n" },
+              {
+                "type": "method_call",
+                "caller": "seq_item_port",
+                "method": "item_done",
+                "arguments": []
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
