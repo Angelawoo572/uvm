@@ -1,588 +1,329 @@
 `default_nettype none
 `include "../stimuli_fsm/seq_stim_if.svh"
-/*
-File 1 uses an inline LFSR inside each method module.
-The feedback taps are hard-coded locally, and each method computes and uses
-the NEXT LFSR state directly when accepting a request.
-This version is a direct, self-contained baseline implementation.
-*/
-
-// ============================================================
-// Method 1: inclusive range [lo:hi], LFSR-based search
-// ============================================================
-module stimuli_fsm_method1 #(
-    parameter int DATA_W = 32,
-    parameter int NUM_CONSTRAINTS = 8
+module lfsr_poly_fixed #(
+    parameter int W = 8
 ) (
-    seq_stim_if.STIM stim_if
+    input  logic         clk,
+    input  logic         rst_n,
+    input  logic         enable,
+    input  logic         seed_load,
+    input  logic [W-1:0] seed,
+    output logic [W-1:0] state
 );
 
-    typedef enum logic [1:0] {
-        IDLE   = 2'd0,
-        SEARCH = 2'd1,
-        RESP   = 2'd2
-    } state_t;
-
-    state_t state;
-
-    logic [DATA_W-1:0] lfsr_state;
-    logic [DATA_W-1:0] lo_reg, hi_reg;
-    logic [DATA_W-1:0] candidate_reg;
-    logic [DATA_W-1:0] lfsr_next;
-    logic feedback;
-
-    // 32-bit Fibonacci LFSR taps
-    assign feedback  = lfsr_state[31] ^ lfsr_state[21] ^ lfsr_state[1] ^ lfsr_state[0];
-    assign lfsr_next = {lfsr_state[30:0], feedback};
-
-    assign stim_if.req_ready   = (state == IDLE);
-    assign stim_if.rsp_valid   = (state == RESP);
-    assign stim_if.solved_data = candidate_reg;
-
-    function automatic logic in_range_inclusive(
-        input logic [DATA_W-1:0] x,
-        input logic [DATA_W-1:0] lo,
-        input logic [DATA_W-1:0] hi
-    );
+    logic [W-1:0] next_state;
+    logic         feedback;
+    int           i;
+    // Return LOWER tap mask only.
+    // MSB tap is always implicit in this Fibonacci XOR form.
+    // Bit i of the returned mask corresponds to state[i].
+    function automatic logic [W-1:0] get_tap_mask();
+        logic [W-1:0] m;
         begin
-            in_range_inclusive = (lo <= hi) && (x >= lo) && (x <= hi);
+            m = '0;
+            unique case (W)
+                3:  begin m[1]  = 1'b1; end                                  // 3,2
+                4:  begin m[2]  = 1'b1; end                                  // 4,3
+                5:  begin m[2]  = 1'b1; end                                  // 5,3
+                6:  begin m[4]  = 1'b1; end                                  // 6,5
+                7:  begin m[5]  = 1'b1; end                                  // 7,6
+                8:  begin m[5]  = 1'b1; m[4] = 1'b1; m[3] = 1'b1; end        // 8,6,5,4
+                9:  begin m[4]  = 1'b1; end                                  // 9,5
+                10: begin m[6]  = 1'b1; end                                  // 10,7
+                11: begin m[8]  = 1'b1; end                                  // 11,9
+                12: begin m[5]  = 1'b1; m[3] = 1'b1; m[0] = 1'b1; end        // 12,6,4,1
+                13: begin m[3]  = 1'b1; m[2] = 1'b1; m[0] = 1'b1; end        // 13,4,3,1
+                14: begin m[4]  = 1'b1; m[2] = 1'b1; m[0] = 1'b1; end        // 14,5,3,1
+                15: begin m[13] = 1'b1; end                                  // 15,14
+                16: begin m[14] = 1'b1; m[12] = 1'b1; m[3] = 1'b1; end       // 16,15,13,4
+                17: begin m[13] = 1'b1; end                                  // 17,14
+                18: begin m[10] = 1'b1; end                                  // 18,11
+                19: begin m[5]  = 1'b1; m[1] = 1'b1; m[0] = 1'b1; end        // 19,6,2,1
+                20: begin m[16] = 1'b1; end                                  // 20,17
+                21: begin m[18] = 1'b1; end                                  // 21,19
+                22: begin m[20] = 1'b1; end                                  // 22,21
+                23: begin m[17] = 1'b1; end                                  // 23,18
+                24: begin m[22] = 1'b1; m[21] = 1'b1; m[16] = 1'b1; end      // 24,23,22,17
+                25: begin m[21] = 1'b1; end                                  // 25,22
+                26: begin m[5]  = 1'b1; m[1] = 1'b1; m[0] = 1'b1; end        // 26,6,2,1
+                27: begin m[4]  = 1'b1; m[1] = 1'b1; m[0] = 1'b1; end        // 27,5,2,1
+                28: begin m[24] = 1'b1; end                                  // 28,25
+                29: begin m[26] = 1'b1; end                                  // 29,27
+                30: begin m[5]  = 1'b1; m[3] = 1'b1; m[0] = 1'b1; end        // 30,6,4,1
+                31: begin m[27] = 1'b1; end                                  // 31,28
+                32: begin m[21] = 1'b1; m[1] = 1'b1; m[0] = 1'b1; end        // 32,22,2,1
+                33: begin m[19] = 1'b1; end                                  // 33,20
+                34: begin m[26] = 1'b1; m[1] = 1'b1; m[0] = 1'b1; end        // 34,27,2,1
+                35: begin m[32] = 1'b1; end                                  // 35,33
+                36: begin m[24] = 1'b1; end                                  // 36,25
+                37: begin m[4]  = 1'b1; m[3] = 1'b1; m[2] = 1'b1;
+                          m[1]  = 1'b1; m[0] = 1'b1; end                     // 37,5,4,3,2,1
+                38: begin m[5]  = 1'b1; m[4] = 1'b1; m[0] = 1'b1; end        // 38,6,5,1
+                39: begin m[34] = 1'b1; end                                  // 39,35
+                40: begin m[37] = 1'b1; m[20] = 1'b1; m[18] = 1'b1; end      // 40,38,21,19
+                41: begin m[37] = 1'b1; end                                  // 41,38
+                42: begin m[40] = 1'b1; m[19] = 1'b1; m[18] = 1'b1; end      // 42,41,20,19
+                43: begin m[41] = 1'b1; m[37] = 1'b1; m[36] = 1'b1; end      // 43,42,38,37
+                44: begin m[42] = 1'b1; m[17] = 1'b1; m[16] = 1'b1; end      // 44,43,18,17
+                45: begin m[43] = 1'b1; m[41] = 1'b1; m[40] = 1'b1; end      // 45,44,42,41
+                46: begin m[44] = 1'b1; m[25] = 1'b1; m[24] = 1'b1; end      // 46,45,26,25
+                47: begin m[41] = 1'b1; end                                  // 47,42
+                48: begin m[46] = 1'b1; m[20] = 1'b1; m[19] = 1'b1; end      // 48,47,21,20
+                49: begin m[39] = 1'b1; end                                  // 49,40
+                50: begin m[48] = 1'b1; m[23] = 1'b1; m[22] = 1'b1; end      // 50,49,24,23
+                51: begin m[49] = 1'b1; m[35] = 1'b1; m[34] = 1'b1; end      // 51,50,36,35
+                52: begin m[48] = 1'b1; end                                  // 52,49
+                53: begin m[51] = 1'b1; m[37] = 1'b1; m[36] = 1'b1; end      // 53,52,38,37
+                54: begin m[52] = 1'b1; m[17] = 1'b1; m[16] = 1'b1; end      // 54,53,18,17
+                55: begin m[30] = 1'b1; end                                  // 55,31
+                56: begin m[54] = 1'b1; m[34] = 1'b1; m[33] = 1'b1; end      // 56,55,35,34
+                57: begin m[49] = 1'b1; end                                  // 57,50
+                58: begin m[38] = 1'b1; end                                  // 58,39
+                59: begin m[57] = 1'b1; m[37] = 1'b1; m[36] = 1'b1; end      // 59,58,38,37
+                60: begin m[58] = 1'b1; end                                  // 60,59
+                61: begin m[59] = 1'b1; m[45] = 1'b1; m[44] = 1'b1; end      // 61,60,46,45
+                62: begin m[60] = 1'b1; m[5]  = 1'b1; m[4]  = 1'b1; end      // 62,61,6,5
+                63: begin m[61] = 1'b1; end                                  // 63,62
+                64: begin m[62] = 1'b1; m[60] = 1'b1; m[59] = 1'b1; end      // 64,63,61,60
+                default: m = '0;
+            endcase
+            return m;
         end
     endfunction
 
-    always_ff @(posedge stim_if.clk, negedge stim_if.rst_n) begin
-        if (!stim_if.rst_n) begin
-            state         <= IDLE;
-            lfsr_state    <= 32'h1;
-            lo_reg        <= '0;
-            hi_reg        <= '0;
-            candidate_reg <= '0;
-        end else begin
-            if (stim_if.req_seed_load) begin
-                lfsr_state <= (stim_if.seed == '0) ? 32'h1 : stim_if.seed;
-            end else begin
-                case (state)
-                    IDLE: begin
-                        if (stim_if.req_valid) begin
-                            lo_reg <= stim_if.lower_bound;
-                            hi_reg <= stim_if.upper_bound;
-
-                            lfsr_state <= lfsr_next;
-
-                            if (in_range_inclusive(lfsr_next,
-                                                   stim_if.lower_bound,
-                                                   stim_if.upper_bound)) begin
-                                candidate_reg <= lfsr_next;
-                                state         <= RESP;
-                            end else begin
-                                state         <= SEARCH;
-                            end
-                        end
-                    end
-
-                    SEARCH: begin
-                        lfsr_state <= lfsr_next;
-
-                        if (in_range_inclusive(lfsr_next, lo_reg, hi_reg)) begin
-                            candidate_reg <= lfsr_next;
-                            state         <= RESP;
-                        end
-                    end
-
-                    RESP: begin
-                        if (stim_if.rsp_ready) begin
-                            state <= IDLE;
-                        end
-                    end
-
-                    default: begin
-                        state <= IDLE;
-                    end
-                endcase
-            end
-        end
-    end
-
-endmodule : stimuli_fsm_method1
-
-
-// ============================================================
-// Method 2: exclusive range (lo, hi), LFSR-based search
-// ============================================================
-module stimuli_fsm_method2 #(
-    parameter int DATA_W = 32,
-    parameter int NUM_CONSTRAINTS = 8
-) (
-    seq_stim_if.STIM stim_if
-);
-
-    typedef enum logic [1:0] {
-        IDLE   = 2'd0,
-        SEARCH = 2'd1,
-        RESP   = 2'd2
-    } state_t;
-
-    state_t state;
-
-    logic [DATA_W-1:0] lfsr_state;
-    logic [DATA_W-1:0] lo_reg, hi_reg;
-    logic [DATA_W-1:0] candidate_reg;
-    logic [DATA_W-1:0] lfsr_next;
-    logic feedback;
-
-    assign feedback  = lfsr_state[31] ^ lfsr_state[21] ^ lfsr_state[1] ^ lfsr_state[0];
-    assign lfsr_next = {lfsr_state[30:0], feedback};
-
-    assign stim_if.req_ready   = (state == IDLE);
-    assign stim_if.rsp_valid   = (state == RESP);
-    assign stim_if.solved_data = candidate_reg;
-
-    function automatic logic in_range_exclusive(
-        input logic [DATA_W-1:0] x,
-        input logic [DATA_W-1:0] lo,
-        input logic [DATA_W-1:0] hi
-    );
-        begin
-            in_range_exclusive = (hi > lo + 1'b1) && (x > lo) && (x < hi);
-        end
-    endfunction
-
-    always_ff @(posedge stim_if.clk, negedge stim_if.rst_n) begin
-        if (!stim_if.rst_n) begin
-            state         <= IDLE;
-            lfsr_state    <= 32'h1;
-            lo_reg        <= '0;
-            hi_reg        <= '0;
-            candidate_reg <= '0;
-        end else begin
-            if (stim_if.req_seed_load) begin
-                lfsr_state <= (stim_if.seed == '0) ? 32'h1 : stim_if.seed;
-            end else begin
-                case (state)
-                    IDLE: begin
-                        if (stim_if.req_valid) begin
-                            lo_reg <= stim_if.lower_bound;
-                            hi_reg <= stim_if.upper_bound;
-
-                            lfsr_state <= lfsr_next;
-
-                            if (in_range_exclusive(lfsr_next,
-                                                   stim_if.lower_bound,
-                                                   stim_if.upper_bound)) begin
-                                candidate_reg <= lfsr_next;
-                                state         <= RESP;
-                            end else begin
-                                state         <= SEARCH;
-                            end
-                        end
-                    end
-
-                    SEARCH: begin
-                        lfsr_state <= lfsr_next;
-
-                        if (in_range_exclusive(lfsr_next, lo_reg, hi_reg)) begin
-                            candidate_reg <= lfsr_next;
-                            state         <= RESP;
-                        end
-                    end
-
-                    RESP: begin
-                        if (stim_if.rsp_ready) begin
-                            state <= IDLE;
-                        end
-                    end
-
-                    default: begin
-                        state <= IDLE;
-                    end
-                endcase
-            end
-        end
-    end
-
-endmodule : stimuli_fsm_method2
-
-
-// ============================================================
-// Method 3: enum subset {RAM, CPU, ROM}, LFSR-driven mapping
-// ============================================================
-module stimuli_fsm_method3 #(
-    parameter int DATA_W = 32,
-    parameter int NUM_CONSTRAINTS = 8
-) (
-    seq_stim_if.STIM stim_if
-);
-
-    typedef enum logic [7:0] {
-        RAM  = 8'd0,
-        CPU  = 8'd1,
-        ROM  = 8'd2,
-        ROM2 = 8'd123,
-        CPU2 = 8'd124
-    } addr_t;
-
-    typedef enum logic [1:0] {
-        IDLE = 2'd0,
-        RESP = 2'd1
-    } state_t;
-
-    state_t state;
-
-    logic [31:0] lfsr_state;
-    logic [31:0] lfsr_next;
-    logic [31:0] candidate_reg;
-    logic feedback;
-    logic [1:0] sel;
-    addr_t addr_enum;
-
-    assign feedback  = lfsr_state[31] ^ lfsr_state[21] ^ lfsr_state[1] ^ lfsr_state[0];
-    assign lfsr_next = {lfsr_state[30:0], feedback};
+    localparam logic [W-1:0] TAP_MASK = get_tap_mask();
+    localparam logic [W-1:0] DEFAULT_SEED = {{(W-1){1'b0}}, 1'b1};
 
     always_comb begin
-        sel = lfsr_next[1:0];
-        unique case (sel)
-            2'd0: addr_enum = RAM;
-            2'd1: addr_enum = CPU;
-            default: addr_enum = ROM; // 2 or 3 both map to ROM
-        endcase
+        feedback = state[W-1];
+        for (i = 0; i < W-1; i++) begin
+            if (TAP_MASK[i]) feedback ^= state[i];
+        end
+        next_state = {state[W-2:0], feedback};
     end
 
-    assign stim_if.req_ready   = (state == IDLE);
-    assign stim_if.rsp_valid   = (state == RESP);
-    assign stim_if.solved_data = candidate_reg;
-
-    always_ff @(posedge stim_if.clk, negedge stim_if.rst_n) begin
-        if (!stim_if.rst_n) begin
-            state         <= IDLE;
-            lfsr_state    <= 32'h1;
-            candidate_reg <= 32'd0;
-        end else begin
-            if (stim_if.req_seed_load) begin
-                lfsr_state <= (stim_if.seed == '0) ? 32'h1 : stim_if.seed;
-            end else begin
-                case (state)
-                    IDLE: begin
-                        if (stim_if.req_valid) begin
-                            lfsr_state    <= lfsr_next;
-                            candidate_reg <= {{(DATA_W-8){1'b0}}, addr_enum};
-                            state         <= RESP;
-                        end
-                    end
-
-                    RESP: begin
-                        if (stim_if.rsp_ready) begin
-                            state <= IDLE;
-                        end
-                    end
-
-                    default: begin
-                        state <= IDLE;
-                    end
-                endcase
-            end
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            state <= DEFAULT_SEED;
+        end else if (seed_load) begin
+            if (seed == '0)
+                state <= DEFAULT_SEED;
+            else
+                state <= seed;
+        end else if (enable) begin
+            if (state == '0)
+                state <= DEFAULT_SEED;
+            else
+                state <= next_state;
         end
     end
 
-endmodule : stimuli_fsm_method3
+    initial begin
+        if (W < 3 || W > 64)
+            $error("lfsr_poly_fixed: unsupported W=%0d (supported 3..64)", W);
+        if (TAP_MASK == '0)
+            $error("lfsr_poly_fixed: no tap mask defined for W=%0d", W);
+    end
 
+endmodule : lfsr_poly_fixed
 
-// ============================================================
-// TB for Method 1
-// ============================================================
-module tb_method1;
+module lfsr_poly_fixed_tb;
+    localparam int W = 16;
+    localparam longint unsigned EXPECTED_PERIOD = (64'd1 << W) - 1;
 
-    localparam int DATA_W = 32;
-    localparam int NUM_CONSTRAINTS = 8;
+    logic         clk;
+    logic         rst_n;
+    logic         enable;
+    logic         seed_load;
+    logic [W-1:0] seed;
+    logic [W-1:0] state;
 
-    logic clk, rst_n;
-
-    seq_stim_if #(
-        .DATA_W(DATA_W),
-        .NUM_CONSTRAINTS(NUM_CONSTRAINTS)
-    ) stim_if (
-        .clk(clk),
-        .rst_n(rst_n)
-    );
-
-    stimuli_fsm_method1 #(
-        .DATA_W(DATA_W),
-        .NUM_CONSTRAINTS(NUM_CONSTRAINTS)
+    lfsr_poly_fixed #(
+        .W(W)
     ) dut (
-        .stim_if(stim_if)
+        .clk      (clk),
+        .rst_n    (rst_n),
+        .enable   (enable),
+        .seed_load(seed_load),
+        .seed     (seed),
+        .state    (state)
     );
 
+    initial clk = 1'b0;
     always #5 clk = ~clk;
 
     task automatic reset_dut();
         begin
-            rst_n = 1'b0;
-            stim_if.seed          = '0;
-            stim_if.lower_bound   = '0;
-            stim_if.upper_bound   = '0;
-            stim_if.constraint_id = '0;
-            stim_if.req_seed_load = 1'b0;
-            stim_if.req_valid     = 1'b0;
-            stim_if.rsp_ready     = 1'b0;
+            rst_n     = 1'b0;
+            enable    = 1'b0;
+            seed_load = 1'b0;
+            seed      = '0;
             repeat (2) @(posedge clk);
-            rst_n = 1'b1;
+            rst_n     = 1'b1;
+            @(posedge clk);
         end
     endtask
 
-    task automatic load_seed(input logic [DATA_W-1:0] s);
+    task automatic load_seed(input logic [W-1:0] s);
         begin
+            seed      = s;
+            seed_load = 1'b1;
             @(posedge clk);
-            stim_if.seed          <= s;
-            stim_if.req_seed_load <= 1'b1;
+            seed_load = 1'b0;
             @(posedge clk);
-            stim_if.req_seed_load <= 1'b0;
         end
     endtask
 
-    task automatic request_inclusive(
-        input logic [DATA_W-1:0] lo,
-        input logic [DATA_W-1:0] hi
-    );
+    task automatic test_zero_seed_redirect();
         begin
-            wait (stim_if.req_ready);
-            @(posedge clk);
-            stim_if.lower_bound <= lo;
-            stim_if.upper_bound <= hi;
-            stim_if.req_valid   <= 1'b1;
-            stim_if.rsp_ready   <= 1'b1;
+            $display("\n[ZERO] W=%0d", W);
+            reset_dut();
+            load_seed('0);
 
-            @(posedge clk);
-            stim_if.req_valid <= 1'b0;
-
-            wait (stim_if.rsp_valid);
-            $display("[M1] solved_data=%0d range=[%0d:%0d]", stim_if.solved_data, lo, hi);
-
-            if (!((stim_if.solved_data >= lo) && (stim_if.solved_data <= hi))) begin
-                $display("ERROR: method1 output out of inclusive range");
+            if (state == '0) begin
+                $error("[ZERO] FAIL: state remained zero");
                 $finish;
             end
 
+            $display("[ZERO] PASS: redirected to 0x%0h", state);
+        end
+    endtask
+
+    task automatic test_repeatability();
+        logic [W-1:0] seq1 [0:15];
+        logic [W-1:0] seq2 [0:15];
+        int i;
+        begin
+            $display("\n[REPEAT] W=%0d", W);
+
+            reset_dut();
+            load_seed({{(W-8){1'b0}}, 8'hA5});
+
+            enable = 1'b1;
+            for (i = 0; i < 16; i++) begin
+                @(posedge clk);
+                seq1[i] = state;
+            end
+            enable = 1'b0;
             @(posedge clk);
-            stim_if.rsp_ready <= 1'b0;
+
+            reset_dut();
+            load_seed({{(W-8){1'b0}}, 8'hA5});
+
+            enable = 1'b1;
+            for (i = 0; i < 16; i++) begin
+                @(posedge clk);
+                seq2[i] = state;
+            end
+            enable = 1'b0;
+            @(posedge clk);
+
+            for (i = 0; i < 16; i++) begin
+                if (seq1[i] !== seq2[i]) begin
+                    $error("[REPEAT] FAIL: mismatch at i=%0d", i);
+                    $finish;
+                end
+            end
+
+            $display("[REPEAT] PASS");
+        end
+    endtask
+
+    task automatic test_period_exhaustive();
+        bit visited [0:(1<<16)-1];
+        logic [W-1:0] first_state;
+        int i;
+        begin
+            if (W > 16) begin
+                $display("\n[PERIOD] SKIP exhaustive for W=%0d", W);
+                disable test_period_exhaustive;
+            end
+
+            $display("\n[PERIOD] exhaustive W=%0d", W);
+
+            reset_dut();
+            load_seed('d1);
+
+            first_state = state;
+
+            if (first_state == '0) begin
+                $error("[PERIOD] FAIL: initial state is zero");
+                $finish;
+            end
+
+            for (i = 0; i < (1<<16); i++) visited[i] = 1'b0;
+            visited[int'(first_state)] = 1'b1;
+
+            enable = 1'b1;
+            for (i = 1; i <= EXPECTED_PERIOD; i++) begin
+                @(posedge clk);
+
+                if (state == '0) begin
+                    $error("[PERIOD] FAIL: entered zero state at step %0d", i);
+                    $finish;
+                end
+
+                if (state == first_state) begin
+                    if (i != EXPECTED_PERIOD) begin
+                        $error("[PERIOD] FAIL: returned early at step %0d expected %0d", i, EXPECTED_PERIOD);
+                        $finish;
+                    end else begin
+                        $display("[PERIOD] PASS: period=%0d", EXPECTED_PERIOD);
+                    end
+                end else begin
+                    if (visited[int'(state)]) begin
+                        $error("[PERIOD] FAIL: repeated state 0x%0h early at step %0d", state, i);
+                        $finish;
+                    end
+                    visited[int'(state)] = 1'b1;
+                end
+            end
+
+            enable = 1'b0;
+            @(posedge clk);
+        end
+    endtask
+
+    task automatic smoke_test_large();
+        int i;
+        begin
+            if (W <= 16) disable smoke_test_large;
+
+            $display("\n[SMOKE] W=%0d", W);
+
+            reset_dut();
+            load_seed('d1);
+
+            if (state == '0) begin
+                $error("[SMOKE] FAIL: initial state is zero");
+                $finish;
+            end
+
+            enable = 1'b1;
+            for (i = 0; i < 2000; i++) begin
+                @(posedge clk);
+                if (state == '0) begin
+                    $error("[SMOKE] FAIL: zero state seen at step %0d", i);
+                    $finish;
+                end
+            end
+            enable = 1'b0;
+            @(posedge clk);
+
+            $display("[SMOKE] PASS");
         end
     endtask
 
     initial begin
-        clk = 1'b0;
-        reset_dut();
-        load_seed(32'h0000_00A5);
+        $display("==== lfsr_poly_fixed_tb start (W=%0d) ====", W);
 
-        request_inclusive(32'd0, 32'd255);
-        request_inclusive(32'd100, 32'd5000);
-        request_inclusive(32'd1000, 32'd100000);
-        request_inclusive(32'd1, 32'd3);
+        test_zero_seed_redirect();
+        test_repeatability();
+        test_period_exhaustive();
+        smoke_test_large();
 
-        #50;
-        $display("tb_method1 PASSED");
+        $display("\nAll fixed-width LFSR tests PASSED.");
         $finish;
     end
 
-endmodule : tb_method1
-
-
-// ============================================================
-// TB for Method 2
-// ============================================================
-module tb_method2;
-
-    localparam int DATA_W = 32;
-    localparam int NUM_CONSTRAINTS = 8;
-
-    logic clk, rst_n;
-
-    seq_stim_if #(
-        .DATA_W(DATA_W),
-        .NUM_CONSTRAINTS(NUM_CONSTRAINTS)
-    ) stim_if (
-        .clk(clk),
-        .rst_n(rst_n)
-    );
-
-    stimuli_fsm_method2 #(
-        .DATA_W(DATA_W),
-        .NUM_CONSTRAINTS(NUM_CONSTRAINTS)
-    ) dut (
-        .stim_if(stim_if)
-    );
-
-    always #5 clk = ~clk;
-
-    task automatic reset_dut();
-        begin
-            rst_n = 1'b0;
-            stim_if.seed          = '0;
-            stim_if.lower_bound   = '0;
-            stim_if.upper_bound   = '0;
-            stim_if.constraint_id = '0;
-            stim_if.req_seed_load = 1'b0;
-            stim_if.req_valid     = 1'b0;
-            stim_if.rsp_ready     = 1'b0;
-            repeat (2) @(posedge clk);
-            rst_n = 1'b1;
-        end
-    endtask
-
-    task automatic load_seed(input logic [DATA_W-1:0] s);
-        begin
-            @(posedge clk);
-            stim_if.seed          <= s;
-            stim_if.req_seed_load <= 1'b1;
-            @(posedge clk);
-            stim_if.req_seed_load <= 1'b0;
-        end
-    endtask
-
-    task automatic request_exclusive(
-        input logic [DATA_W-1:0] lo,
-        input logic [DATA_W-1:0] hi
-    );
-        begin
-            wait (stim_if.req_ready);
-            @(posedge clk);
-            stim_if.lower_bound <= lo;
-            stim_if.upper_bound <= hi;
-            stim_if.req_valid   <= 1'b1;
-            stim_if.rsp_ready   <= 1'b1;
-
-            @(posedge clk);
-            stim_if.req_valid <= 1'b0;
-
-            wait (stim_if.rsp_valid);
-            $display("[M2] solved_data=%0d constraint=(%0d,%0d)", stim_if.solved_data, lo, hi);
-
-            if (!((stim_if.solved_data > lo) && (stim_if.solved_data < hi))) begin
-                $display("ERROR: method2 output violates exclusive range");
-                $finish;
-            end
-
-            @(posedge clk);
-            stim_if.rsp_ready <= 1'b0;
-        end
-    endtask
-
-    initial begin
-        clk = 1'b0;
-        reset_dut();
-        load_seed(32'hACE1_1234);
-
-        request_exclusive(32'd0, 32'd10);
-        request_exclusive(32'd100, 32'd5000);
-        request_exclusive(32'd1234, 32'd5555);
-        request_exclusive(32'd10000, 32'd20000);
-
-        #50;
-        $display("tb_method2 PASSED");
-        $finish;
-    end
-
-endmodule : tb_method2
-
-
-// ============================================================
-// TB for Method 3
-// ============================================================
-module tb_method3;
-
-    localparam int DATA_W = 32;
-    localparam int NUM_CONSTRAINTS = 8;
-
-    logic clk, rst_n;
-
-    seq_stim_if #(
-        .DATA_W(DATA_W),
-        .NUM_CONSTRAINTS(NUM_CONSTRAINTS)
-    ) stim_if (
-        .clk(clk),
-        .rst_n(rst_n)
-    );
-
-    stimuli_fsm_method3 #(
-        .DATA_W(DATA_W),
-        .NUM_CONSTRAINTS(NUM_CONSTRAINTS)
-    ) dut (
-        .stim_if(stim_if)
-    );
-
-    always #5 clk = ~clk;
-
-    function automatic string enum_name(input logic [31:0] x);
-        begin
-            case (x)
-                32'd0:   enum_name = "RAM";
-                32'd1:   enum_name = "CPU";
-                32'd2:   enum_name = "ROM";
-                32'd123: enum_name = "ROM2";
-                32'd124: enum_name = "CPU2";
-                default: enum_name = "UNKNOWN";
-            endcase
-        end
-    endfunction
-
-    task automatic reset_dut();
-        begin
-            rst_n = 1'b0;
-            stim_if.seed          = '0;
-            stim_if.lower_bound   = '0;
-            stim_if.upper_bound   = '0;
-            stim_if.constraint_id = '0;
-            stim_if.req_seed_load = 1'b0;
-            stim_if.req_valid     = 1'b0;
-            stim_if.rsp_ready     = 1'b0;
-            repeat (2) @(posedge clk);
-            rst_n = 1'b1;
-        end
-    endtask
-
-    task automatic load_seed(input logic [DATA_W-1:0] s);
-        begin
-            @(posedge clk);
-            stim_if.seed          <= s;
-            stim_if.req_seed_load <= 1'b1;
-            @(posedge clk);
-            stim_if.req_seed_load <= 1'b0;
-        end
-    endtask
-
-    task automatic request_enum();
-        begin
-            wait (stim_if.req_ready);
-            @(posedge clk);
-            stim_if.req_valid <= 1'b1;
-            stim_if.rsp_ready <= 1'b1;
-
-            @(posedge clk);
-            stim_if.req_valid <= 1'b0;
-
-            wait (stim_if.rsp_valid);
-            $display("[M3] solved_data=%0d (%s)", stim_if.solved_data, enum_name(stim_if.solved_data));
-
-            if (!((stim_if.solved_data == 32'd0) ||
-                  (stim_if.solved_data == 32'd1) ||
-                  (stim_if.solved_data == 32'd2))) begin
-                $display("ERROR: method3 output not in legal enum subset");
-                $finish;
-            end
-
-            @(posedge clk);
-            stim_if.rsp_ready <= 1'b0;
-        end
-    endtask
-
-    initial begin
-        clk = 1'b0;
-        reset_dut();
-        load_seed(32'h5A5A_00F1);
-
-        repeat (8) begin
-            request_enum();
-        end
-
-        #50;
-        $display("tb_method3 PASSED");
-        $finish;
-    end
-
-endmodule : tb_method3
+endmodule: lfsr_poly_fixed_tb
