@@ -1,7 +1,15 @@
 all:
-	python3 parsed_to_cov.py cov_parsed.json constants.svh cov_usable.json
-	python3 gen_cov.py cov_usable.json coverage.sv
+	python3 parsed_to_cov.py outputs/cov_parsed.json outputs/constants.svh outputs/cov_usable.json
+	python3 gen_cov.py outputs/cov_usable.json outputs/coverage.sv
+
+parse_1:
+	python ../parser/sv_to_json.py ../uvm_samples/stress/example1-basic/cov.svh outputs/cov_parsed.json
+	cp ../uvm_samples/stress/example1-basic/constants.svh outputs/constants.svh
+
+parse_3:
+	python ../parser/sv_to_json.py ../uvm_samples/stress/example3-covcol/cov.svh outputs/cov_parsed.json
+	cp ../uvm_samples/stress/example3-covcol/constants.svh outputs/constants.svh
 
 clean:
-	rm cov_usable.json
-	rm coverage.sv
+	rm outputs/cov_usable.json
+	rm outputs/coverage.sv

@@ -85,3 +85,10 @@ vivado*
 # vscode files
 .vscode/*
 AN.DB/*
+
+# Coverage files
+coverage/examples/*
+coverage/jsons/*
+coverage/cov_usable.json
+coverage/cov_parsed.json
+coverage/coverage.sv
