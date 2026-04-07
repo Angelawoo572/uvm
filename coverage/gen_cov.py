@@ -39,10 +39,10 @@ class VerilogModule:
         ports = []
         # Standardize Inputs
         for name, width in self.inputs.items():
-            if width > 1:
-                ports.append(f"    input logic [{width-1}:0] {name}")
-            else:
-                ports.append(f"    input logic {name}")
+            #if width > 1:
+            ports.append(f"    input logic [{width-1}:0] {name}")
+            #else:
+               # ports.append(f"    input logic {name}")
         
         # Standardize Outputs
         for name, width in self.outputs.items():
@@ -327,6 +327,7 @@ def generate_covergroup(cg_data):
         
         # bubble up outputs (prefix with instance name)
         for name, width in cp_mod.outputs.items():
+            print(f"cg name: {name} width {width}")
             mod.add_output(f"{name}", width)
 
     # Process crosses
@@ -411,12 +412,12 @@ def gen_output_cg(cg, output_table):
             max_output_width = cg.outputs[key]
     byte_ctr_bits = math.ceil(math.log2(max_output_width / 8))
     mod.add_input("byte_ctr", byte_ctr_bits)
-    mod.add_line(f"logic[{byte_ctr_bits-1}:0] byte_ctr;")
+    # mod.add_line(f"logic[{byte_ctr_bits-1}:0] byte_ctr;")
 
     # create mux for each output signal
-    for output in cg.outputs.keys():
-        width = cg.outputs[key]
+    for output, width in cg.outputs.items():
         mod.add_input(output, width)
+        print(f"output: {output} width: {width}")
         mod.add_line(f"logic[7:0] {output}_byte;")
         mod.add_line(f"logic {output}_done;")
         mod.add_line("")
