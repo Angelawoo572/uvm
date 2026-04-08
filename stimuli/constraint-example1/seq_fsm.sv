@@ -1,8 +1,24 @@
 module seq_fsm (
     seq_stim_if.SEQ seq_if
 );  
+/*
+  1) Load seed
+  2) Request from stimuli_fsm using req_data_t 
+  3) Wait for response from stimuli_fsm
+  4) Repeat until all required data is received
+  5) Send data to driver fsm
+*/
     localparam DATA_W = seq_if.DATA_W;
     localparam NUM_CONSTRAINTS = seq_if.NUM_CONSTRAINTS;
+
+    typedef enum logic [1:0] {
+      IDLE,
+      RESET,
+      REQ_ITEM,
+      WAIT_RSP,
+      DRIVE
+    } state_t;
+    state_t state, nextState;
 
     task automatic load_seed(bit [31:0] seed);
         seq_if.req_seed_load <= 1'b1;
