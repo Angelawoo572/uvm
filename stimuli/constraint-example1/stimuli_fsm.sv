@@ -44,9 +44,9 @@ module stimuli_fsm (
 
     always_ff @(posedge stim_if.clk) begin
         if (lfsr_req_load) begin
-            registered_constraint_id    <= stim_if.constraint_id;
-            registered_upper_bound      <= stim_if.upper_bound;
-            registered_lower_bound      <= stim_if.lower_bound;
+            registered_constraint_id    <= stim_if.req.constraint_id;
+            registered_upper_bound      <= stim_if.req.upper_bound;
+            registered_lower_bound      <= stim_if.req.lower_bound;
         end
     end
 

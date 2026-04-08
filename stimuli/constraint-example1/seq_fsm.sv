@@ -16,9 +16,9 @@ module seq_fsm (
         wait(seq_if.req_ready);
 
         seq_if.req_seed_load <= 1'b0;
-        seq_if.lower_bound <= lower_bound;
-        seq_if.upper_bound <= upper_bound;
-        seq_if.constraint_id <= constraint_id;
+        seq_if.req.lower_bound <= lower_bound;
+        seq_if.req.upper_bound <= upper_bound;
+        seq_if.req.constraint_id <= constraint_id;
         seq_if.req_valid <= 1'b1;
         seq_if.rsp_ready <= 1'b1;
 

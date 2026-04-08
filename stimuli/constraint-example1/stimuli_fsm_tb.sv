@@ -1,8 +1,9 @@
 `default_nettype none
+`include "constants.svh"
 
 module stimuli_fsm_tb();
-    localparam int DATA_W = 32;
-    localparam int NUM_CONSTRAINTS = 13;
+    localparam int DATA_W = `DATA_W;
+    localparam int NUM_CONSTRAINTS = `NUM_CONSTRAINTS;
     logic clk, rst_n;
     seq_stim_if #(
         .DATA_W(DATA_W),
@@ -81,7 +82,7 @@ module stimuli_fsm_tb();
     // Add this always block to collect data
     always @(posedge clk) begin
         if (seq_stim_if_inst.rsp_valid === 1'b1) begin
-            collected_data[seq_stim_if_inst.constraint_id].push_back(
+            collected_data[seq_stim_if_inst.req.constraint_id].push_back(
                 seq_stim_if_inst.solved_data
             );
         end
