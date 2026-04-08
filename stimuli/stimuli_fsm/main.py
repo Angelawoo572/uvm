@@ -59,7 +59,8 @@ def main(
     files_to_copy = [
         "seq_stim_if.svh",
         "stimuli_fsm.sv",
-        "bounded_LFSR.sv"
+        "bounded_LFSR.sv",
+        "seq_fsm.sv"
     ]
 
     files_to_modify = [
