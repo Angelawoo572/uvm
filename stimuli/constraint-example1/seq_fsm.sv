@@ -1,5 +1,6 @@
 module seq_fsm (
-    seq_stim_if.SEQ seq_if
+    seq_stim_if.SEQ seq_if,
+    logic start
 );  
 /*
   1) Load seed
@@ -13,13 +14,13 @@ module seq_fsm (
 
     typedef enum logic [2:0] {
       IDLE,
-      RESET,
       LOAD_SEED,
       REQ_ITEM,
       WAIT_RSP,
-      DRIVE
+      SEND_TO_DRIVER
     } state_t;
-    state_t state, nextState;
+    state_t state;
+    localparam state_t SEED_LOAD = LOAD_SEED;
 
     data_to_driver_t data_to_driver [`NUM_SEQUENCES];
     req_data_t [3:0] req_data [`NUM_SEQUENCES];
@@ -124,6 +125,94 @@ module seq_fsm (
       .lower_bound(0),
       .upper_bound(32'hFFFF_FFFF)
     };
+
+    // Loop counters
+    int seq_idx;
+    int item_idx;
+
+    /*
+    TODO: Implement FSM:
+    1) IDLE: Implemented already
+    2) LOAD_SEED: Do the same as load_seed task. seed is hardcoded in `SEED in constants.svh
+    */
+    // FSM
+    always_ff @(posedge seq_if.clk, negedge seq_if.rst_n) begin
+      // Default values:
+      seq_if.req_seed_load <= '0;
+      seq_if.req <= '0;
+      seq_if.req_valid <= '0;
+      seq_if.rsp_ready <= '0;
+
+      if (!seq_if.rst_n) begin
+          state <= IDLE;
+          seq_idx <= '0;
+          item_idx <= '0;
+      end
+      else begin
+          case (state)
+            IDLE: begin
+              if (start)
+                state <= SEED_LOAD;
+            end
+
+            SEED_LOAD: begin
+              seq_if.req_seed_load <= 1'b1;
+              seq_if.seed <= `SEED;
+              state <= REQ_ITEM;
+            end
+
+            REQ_ITEM: begin
+              if (seq_if.req_ready) begin
+                seq_if.req_seed_load <= 1'b0;
+                seq_if.req.lower_bound <= req_data[seq_idx][item_idx].lower_bound;
+                seq_if.req.upper_bound <= req_data[seq_idx][item_idx].upper_bound;
+                seq_if.req.constraint_id <= req_data[seq_idx][item_idx].constraint_id;
+                seq_if.req_valid <= 1'b1;
+                seq_if.rsp_ready <= 1'b1;
+                state <= WAIT_RSP;
+              end
+            end
+
+            WAIT_RSP: begin
+              seq_if.req_valid <= 1'b0;
+              seq_if.rsp_ready <= 1'b1;
+
+              if (seq_if.rsp_valid) begin
+                case (item_idx)
+                  0: data_to_driver[seq_idx].rst_n <= seq_if.solved_data[0];
+                  1: data_to_driver[seq_idx].addr_i <= seq_if.solved_data;
+                  2: data_to_driver[seq_idx].we <= seq_if.solved_data[0];
+                  3: data_to_driver[seq_idx].re <= seq_if.solved_data[0];
+                  default: ;
+                endcase
+
+                seq_if.rsp_ready <= 1'b0;
+                if (item_idx == 3) begin
+                  item_idx <= 0;
+                  state <= SEND_TO_DRIVER;
+                end
+                else begin
+                  item_idx <= item_idx + 1;
+                  state <= REQ_ITEM;
+                end
+              end
+            end
+
+            SEND_TO_DRIVER: begin
+              if (seq_idx == (`NUM_SEQUENCES - 1)) begin
+                state <= IDLE;
+              end
+              else begin
+                seq_idx <= seq_idx + 1;
+                item_idx <= 0;
+                state <= REQ_ITEM;
+              end
+            end
+          endcase
+      end
+    end
+
+
 
     task automatic load_seed(bit [31:0] seed);
         seq_if.req_seed_load <= 1'b1;
