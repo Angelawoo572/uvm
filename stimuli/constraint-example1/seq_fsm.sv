@@ -1,5 +1,6 @@
 module seq_fsm (
     seq_stim_if.SEQ seq_if,
+  seq_drv_if.SEQ seq_drv,
     logic start
 );  
 /*
@@ -129,6 +130,7 @@ module seq_fsm (
     // Loop counters
     int seq_idx;
     int item_idx;
+    bit drv_req_accepted;
 
     /*
     TODO: Implement FSM:
@@ -142,11 +144,14 @@ module seq_fsm (
       seq_if.req <= '0;
       seq_if.req_valid <= '0;
       seq_if.rsp_ready <= '0;
+      seq_drv.req_valid <= '0;
+      seq_drv.rsp_ready <= '0;
 
       if (!seq_if.rst_n) begin
           state <= IDLE;
           seq_idx <= '0;
           item_idx <= '0;
+        drv_req_accepted <= 1'b0;
       end
       else begin
           case (state)
@@ -199,13 +204,26 @@ module seq_fsm (
             end
 
             SEND_TO_DRIVER: begin
-              if (seq_idx == (`NUM_SEQUENCES - 1)) begin
-                state <= IDLE;
+              seq_drv.data_to_driver <= data_to_driver[seq_idx];
+
+              if (!drv_req_accepted) begin
+                seq_drv.req_valid <= 1'b1;
+                if (seq_drv.req_ready)
+                  drv_req_accepted <= 1'b1;
               end
               else begin
-                seq_idx <= seq_idx + 1;
-                item_idx <= 0;
-                state <= REQ_ITEM;
+                seq_drv.rsp_ready <= 1'b1;
+                if (seq_drv.rsp_valid) begin
+                  drv_req_accepted <= 1'b0;
+                  if (seq_idx == (`NUM_SEQUENCES - 1)) begin
+                    state <= IDLE;
+                  end
+                  else begin
+                    seq_idx <= seq_idx + 1;
+                    item_idx <= 0;
+                    state <= REQ_ITEM;
+                  end
+                end
               end
             end
           endcase

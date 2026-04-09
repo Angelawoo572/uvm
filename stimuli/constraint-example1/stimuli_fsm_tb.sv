@@ -5,10 +5,16 @@ module stimuli_fsm_tb();
     localparam int DATA_W = `DATA_W;
     localparam int NUM_CONSTRAINTS = `NUM_CONSTRAINTS;
     logic clk, rst_n;
+    logic start;
     seq_stim_if #(
         .DATA_W(DATA_W),
         .NUM_CONSTRAINTS(NUM_CONSTRAINTS)
     ) seq_stim_if_inst (
+        .clk,
+        .rst_n
+    );
+
+    seq_drv_if seq_drv_if_inst (
         .clk,
         .rst_n
     );
@@ -18,7 +24,9 @@ module stimuli_fsm_tb();
     );
 
     seq_fsm seq_fsm_inst (
-        .seq_if(seq_stim_if_inst)
+        .seq_if(seq_stim_if_inst),
+        .seq_drv(seq_drv_if_inst),
+        .start(start)
     );
 
     task automatic reset();
@@ -90,6 +98,12 @@ module stimuli_fsm_tb();
 
     initial begin
         reset();
+        start = 1'b0;
+        @(posedge clk);
+        start = 1'b1;
+        @(posedge clk);
+        start = 1'b0;
+
         seq_fsm_inst.load_seed(32'hF234567);
         repeat(10) // e.g. inside 32'h56789 and 32'hFAAFFA0
             seq_fsm_inst.request_data(2'b0, 32'h00056789, 32'hFAAFFA0);

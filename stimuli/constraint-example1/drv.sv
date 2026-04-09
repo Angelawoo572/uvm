@@ -7,14 +7,9 @@ module drv_rtl #(
 )(
   input  logic clk,
   input  logic rst_n_sys,
-  
-  itf.drv_cb vif,
 
-  output logic      req_valid,
-  input  logic      req_ready,
-  output logic      rsp_ready,
-  input  logic      rsp_valid,
-  input  data_to_driver_t   req
+  itf.drv_cb vif,
+  seq_drv_if.DRV seq_drv
 );
     typedef enum logic [2:0] {
       S_RESET, 
@@ -30,8 +25,8 @@ module drv_rtl #(
         state <= S_RESET;
       end else begin
         state <= next_state;
-        if (state == S_WAIT_RSP && rsp_valid) begin
-          temp <= req; 
+        if (state == S_REQ_ITEM && seq_drv.req_valid && seq_drv.req_ready) begin
+          temp <= seq_drv.data_to_driver;
         end
         if (state == S_DRIVE) begin
           vif.rst_n <= temp.rst_n;
@@ -44,20 +39,20 @@ module drv_rtl #(
 
     always_comb begin
       next_state = state;
-      req_valid  = 1'b0;
-      rsp_ready  = 1'b0;
+      seq_drv.req_ready = 1'b0;
+      seq_drv.rsp_valid = 1'b0;
 
       case (state)
         S_RESET: next_state = S_REQ_ITEM;
 
         S_REQ_ITEM: begin
-          req_valid = 1'b1;
-          if (req_ready) next_state = S_WAIT_RSP;
+          seq_drv.req_ready = 1'b1;
+          if (seq_drv.req_valid) next_state = S_WAIT_RSP;
         end
 
         S_WAIT_RSP: begin
-          rsp_ready = 1'b1;
-          if (rsp_valid) next_state = S_DRIVE;
+          seq_drv.rsp_valid = 1'b1;
+          if (seq_drv.rsp_ready) next_state = S_DRIVE;
         end
         S_DRIVE: begin
           next_state = S_REQ_ITEM; 
