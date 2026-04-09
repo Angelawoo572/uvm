@@ -20,6 +20,8 @@ module seq_fsm (
     } state_t;
     state_t state, nextState;
 
+    data_to_driver_t data_to_driver [`NUM_SEQUENCES];
+
     task automatic load_seed(bit [31:0] seed);
         seq_if.req_seed_load <= 1'b1;
         seq_if.seed <= seed;
