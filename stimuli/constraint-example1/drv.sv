@@ -8,15 +8,14 @@ module drv_rtl #(
   input  logic clk,
   input  logic rst_n_sys,
   
-  alu_if.drv_cb vif,
+  itf.drv_cb vif,
 
   output logic      req_valid,
   input  logic      req_ready,
   output logic      rsp_ready,
   input  logic      rsp_valid,
-  input  req_data_t   req
+  input  data_to_driver_t   req
 );
-
     typedef enum logic [2:0] {
       S_RESET, 
       S_REQ_ITEM, 
@@ -25,7 +24,7 @@ module drv_rtl #(
     } state_t;
     
     state_t state, next_state;
-    req_data_t temp;
+    data_to_driver_t temp;
     always_ff @(posedge clk or negedge rst_n_sys) begin
       if (!rst_n_sys) begin
         state <= S_RESET;
@@ -35,11 +34,10 @@ module drv_rtl #(
           temp <= req; 
         end
         if (state == S_DRIVE) begin
+          vif.rst_n <= temp.rst_n;
           vif.addr_i <= temp.addr_i;
-          vif.data_i <= temp.data_i;
-          vif.re     <= temp.re;
-          vif.we     <= temp.we;
-          vif.rst_n  <= temp.rst_n;
+          vif.we <= temp.we;
+          vif.re <= temp.re;
         end
       end
     end
