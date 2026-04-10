@@ -2,10 +2,20 @@
   "component": {
     "name": "drv",
     "base_type": "uvm_driver",
-    "base_parameters": ["req_item"],
+    "base_parameters": [
+      "req_item"
+    ],
     "class_parameters": [
-      { "name": "DATA_WIDTH", "default": "32", "type": "int" },
-      { "name": "ADDR_WIDTH", "default": "16", "type": "int" }
+      {
+        "name": "DATA_WIDTH",
+        "default": "32",
+        "type": "int"
+      },
+      {
+        "name": "ADDR_WIDTH",
+        "default": "16",
+        "type": "int"
+      }
     ],
     "members": [
       {
@@ -13,21 +23,32 @@
         "name": "vif",
         "interface_type": "itf",
         "parameters": [
-          { "name": "DATA_WIDTH", "value": "DATA_WIDTH" },
-          { "name": "ADDR_WIDTH", "value": "ADDR_WIDTH" }
+          {
+            "name": "DATA_WIDTH",
+            "value": "DATA_WIDTH"
+          },
+          {
+            "name": "ADDR_WIDTH",
+            "value": "ADDR_WIDTH"
+          }
         ]
       },
       {
         "type": "function",
         "name": "build_phase",
         "arguments": [
-          { "name": "phase", "type": "uvm_phase" }
+          {
+            "name": "phase",
+            "type": "uvm_phase"
+          }
         ],
-        "body": [
+        "children": [
           {
             "type": "super_call",
             "method": "build_phase",
-            "arguments": ["phase"]
+            "arguments": [
+              "phase"
+            ]
           },
           {
             "type": "if",
@@ -58,9 +79,12 @@
         "type": "task",
         "name": "run_phase",
         "arguments": [
-          { "name": "phase", "type": "uvm_phase" }
+          {
+            "name": "phase",
+            "type": "uvm_phase"
+          }
         ],
-        "body": [
+        "children": [
           {
             "type": "variable_declaration",
             "data_type": "req_item",
@@ -74,17 +98,44 @@
                 "type": "method_call",
                 "caller": "seq_item_port",
                 "method": "get_next_item",
-                "arguments": ["req"]
+                "arguments": [
+                  "req"
+                ]
               },
               {
                 "type": "event_control",
                 "event": "vif.drv_cb"
               },
-              { "type": "assignment", "operator": "<=", "lhs": "vif.drv_cb.addr_i", "rhs": "req.addr_i" },
-              { "type": "assignment", "operator": "<=", "lhs": "vif.drv_cb.data_i", "rhs": "req.data_i" },
-              { "type": "assignment", "operator": "<=", "lhs": "vif.drv_cb.re", "rhs": "req.re" },
-              { "type": "assignment", "operator": "<=", "lhs": "vif.drv_cb.we", "rhs": "req.we" },
-              { "type": "assignment", "operator": "<=", "lhs": "vif.drv_cb.rst_n", "rhs": "req.rst_n" },
+              {
+                "type": "assignment",
+                "operator": "<=",
+                "lhs": "vif.drv_cb.addr_i",
+                "rhs": "req.addr_i"
+              },
+              {
+                "type": "assignment",
+                "operator": "<=",
+                "lhs": "vif.drv_cb.data_i",
+                "rhs": "req.data_i"
+              },
+              {
+                "type": "assignment",
+                "operator": "<=",
+                "lhs": "vif.drv_cb.re",
+                "rhs": "req.re"
+              },
+              {
+                "type": "assignment",
+                "operator": "<=",
+                "lhs": "vif.drv_cb.we",
+                "rhs": "req.we"
+              },
+              {
+                "type": "assignment",
+                "operator": "<=",
+                "lhs": "vif.drv_cb.rst_n",
+                "rhs": "req.rst_n"
+              },
               {
                 "type": "method_call",
                 "caller": "seq_item_port",

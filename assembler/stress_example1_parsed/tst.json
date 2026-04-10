@@ -12,13 +12,18 @@
         "type": "function",
         "name": "build_phase",
         "arguments": [
-          { "name": "phase", "type": "uvm_phase" }
+          {
+            "name": "phase",
+            "type": "uvm_phase"
+          }
         ],
-        "body": [
+        "children": [
           {
             "type": "super_call",
             "method": "build_phase",
-            "arguments": ["phase"]
+            "arguments": [
+              "phase"
+            ]
           },
           {
             "type": "assignment",
@@ -41,9 +46,12 @@
         "type": "task",
         "name": "run_phase",
         "arguments": [
-          { "name": "phase", "type": "uvm_phase" }
+          {
+            "name": "phase",
+            "type": "uvm_phase"
+          }
         ],
-        "body": [
+        "children": [
           {
             "type": "variable_declaration",
             "data_type": "config_seq",
@@ -54,30 +62,41 @@
             "type": "method_call",
             "caller": "phase.phase_done",
             "method": "set_drain_time",
-            "arguments": ["this", "20ns"]
+            "arguments": [
+              "this",
+              "20ns"
+            ]
           },
           {
             "type": "super_call",
             "method": "run_phase",
-            "arguments": ["phase"]
+            "arguments": [
+              "phase"
+            ]
           },
           {
             "type": "method_call",
             "caller": "phase",
             "method": "raise_objection",
-            "arguments": ["this"]
+            "arguments": [
+              "this"
+            ]
           },
           {
             "type": "method_call",
             "caller": "m_seq",
             "method": "start",
-            "arguments": ["m_env.m_agt.m_sqr"]
+            "arguments": [
+              "m_env.m_agt.m_sqr"
+            ]
           },
           {
             "type": "method_call",
             "caller": "phase",
             "method": "drop_objection",
-            "arguments": ["this"]
+            "arguments": [
+              "this"
+            ]
           }
         ]
       }

@@ -23,7 +23,7 @@
       },
       {
         "type": "initial_block",
-        "body": [
+        "children": [
           {
             "type": "assignment",
             "operator": "=",
@@ -36,12 +36,21 @@
         "type": "module_instantiation",
         "module_type": "itf",
         "parameters": [
-          { "name": "DATA_WIDTH", "value": "DATA_WIDTH" },
-          { "name": "ADDR_WIDTH", "value": "ADDR_WIDTH" }
+          {
+            "name": "DATA_WIDTH",
+            "value": "DATA_WIDTH"
+          },
+          {
+            "name": "ADDR_WIDTH",
+            "value": "ADDR_WIDTH"
+          }
         ],
         "name": "myitf",
         "ports": [
-          { "name": "clk", "connection": "clk" }
+          {
+            "name": "clk",
+            "connection": "clk"
+          }
         ]
       },
       {
@@ -49,12 +58,15 @@
         "module_type": "dut",
         "name": "mydut",
         "ports": [
-          { "name": "myitf", "connection": "myitf" }
+          {
+            "name": "myitf",
+            "connection": "myitf"
+          }
         ]
       },
       {
         "type": "always_block",
-        "body": [
+        "children": [
           {
             "type": "delay",
             "value": "#10"
@@ -69,7 +81,7 @@
       },
       {
         "type": "initial_block",
-        "body": [
+        "children": [
           {
             "type": "assignment",
             "operator": "=",
@@ -80,12 +92,19 @@
             "type": "method_call",
             "caller": "uvm_config_db#(virtual itf #(.DATA_WIDTH(DATA_WIDTH), .ADDR_WIDTH(ADDR_WIDTH)))",
             "method": "set",
-            "arguments": ["null", "\"tb\"", "\"vif\"", "myitf"]
+            "arguments": [
+              "null",
+              "\"tb\"",
+              "\"vif\"",
+              "myitf"
+            ]
           },
           {
             "type": "function_call",
             "function": "run_test",
-            "arguments": ["\"example1basic\""]
+            "arguments": [
+              "\"example1basic\""
+            ]
           }
         ]
       }

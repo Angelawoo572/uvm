@@ -3,8 +3,16 @@
     "name": "mon",
     "base_type": "uvm_monitor",
     "class_parameters": [
-      { "name": "DATA_WIDTH", "default": "32", "type": "int" },
-      { "name": "ADDR_WIDTH", "default": "16", "type": "int" }
+      {
+        "name": "DATA_WIDTH",
+        "default": "32",
+        "type": "int"
+      },
+      {
+        "name": "ADDR_WIDTH",
+        "default": "16",
+        "type": "int"
+      }
     ],
     "members": [
       {
@@ -12,15 +20,24 @@
         "name": "vif",
         "interface_type": "itf",
         "parameters": [
-          { "name": "DATA_WIDTH", "value": "DATA_WIDTH" },
-          { "name": "ADDR_WIDTH", "value": "ADDR_WIDTH" }
+          {
+            "name": "DATA_WIDTH",
+            "value": "DATA_WIDTH"
+          },
+          {
+            "name": "ADDR_WIDTH",
+            "value": "ADDR_WIDTH"
+          }
         ]
       },
       {
         "type": "variable_declaration",
         "data_type": "uvm_analysis_port",
         "parameters": [
-          { "name": "type", "value": "req_item" }
+          {
+            "name": "type",
+            "value": "req_item"
+          }
         ],
         "name": "m_cov_port"
       },
@@ -28,13 +45,18 @@
         "type": "function",
         "name": "build_phase",
         "arguments": [
-          { "name": "phase", "type": "uvm_phase" }
+          {
+            "name": "phase",
+            "type": "uvm_phase"
+          }
         ],
-        "body": [
+        "children": [
           {
             "type": "super_call",
             "method": "build_phase",
-            "arguments": ["phase"]
+            "arguments": [
+              "phase"
+            ]
           },
           {
             "type": "if",
@@ -71,13 +93,18 @@
         "type": "task",
         "name": "run_phase",
         "arguments": [
-          { "name": "phase", "type": "uvm_phase" }
+          {
+            "name": "phase",
+            "type": "uvm_phase"
+          }
         ],
-        "body": [
+        "children": [
           {
             "type": "super_call",
             "method": "run_phase",
-            "arguments": ["phase"]
+            "arguments": [
+              "phase"
+            ]
           },
           {
             "type": "loop",
@@ -97,17 +124,49 @@
                     "name": "req",
                     "initial_value": "req_item::type_id::create(\"item\")"
                   },
-                  { "type": "assignment", "operator": "=", "lhs": "req.rst_n", "rhs": "vif.rst_n" },
-                  { "type": "assignment", "operator": "=", "lhs": "req.re", "rhs": "vif.re" },
-                  { "type": "assignment", "operator": "=", "lhs": "req.we", "rhs": "vif.we" },
-                  { "type": "assignment", "operator": "=", "lhs": "req.addr_i", "rhs": "vif.addr_i" },
-                  { "type": "assignment", "operator": "=", "lhs": "req.data_i", "rhs": "vif.data_i" },
-                  { "type": "assignment", "operator": "=", "lhs": "req.data_o", "rhs": "vif.data_o" },
+                  {
+                    "type": "assignment",
+                    "operator": "=",
+                    "lhs": "req.rst_n",
+                    "rhs": "vif.rst_n"
+                  },
+                  {
+                    "type": "assignment",
+                    "operator": "=",
+                    "lhs": "req.re",
+                    "rhs": "vif.re"
+                  },
+                  {
+                    "type": "assignment",
+                    "operator": "=",
+                    "lhs": "req.we",
+                    "rhs": "vif.we"
+                  },
+                  {
+                    "type": "assignment",
+                    "operator": "=",
+                    "lhs": "req.addr_i",
+                    "rhs": "vif.addr_i"
+                  },
+                  {
+                    "type": "assignment",
+                    "operator": "=",
+                    "lhs": "req.data_i",
+                    "rhs": "vif.data_i"
+                  },
+                  {
+                    "type": "assignment",
+                    "operator": "=",
+                    "lhs": "req.data_o",
+                    "rhs": "vif.data_o"
+                  },
                   {
                     "type": "method_call",
                     "caller": "m_cov_port",
                     "method": "write",
-                    "arguments": ["req"]
+                    "arguments": [
+                      "req"
+                    ]
                   }
                 ]
               }

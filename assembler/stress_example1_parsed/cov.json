@@ -2,7 +2,9 @@
   "component": {
     "name": "cov",
     "base_type": "uvm_subscriber",
-    "base_parameters": ["req_item"],
+    "base_parameters": [
+      "req_item"
+    ],
     "members": [
       {
         "type": "compiler_directive",
@@ -17,7 +19,7 @@
       {
         "type": "covergroup",
         "name": "opcodes_cg",
-        "body": [
+        "children": [
           {
             "type": "assignment",
             "operator": "=",
@@ -28,9 +30,18 @@
             "type": "coverpoint",
             "target": "m_item.addr_i",
             "bins": [
-              { "name": "MODE0", "value": "MODE0_OFFSET" },
-              { "name": "MODE1", "value": "MODE1_OFFSET" },
-              { "name": "MODE2", "value": "MODE2_OFFSET" }
+              {
+                "name": "MODE0",
+                "value": "MODE0_OFFSET"
+              },
+              {
+                "name": "MODE1",
+                "value": "MODE1_OFFSET"
+              },
+              {
+                "name": "MODE2",
+                "value": "MODE2_OFFSET"
+              }
             ]
           }
         ]
@@ -39,14 +50,23 @@
         "type": "function",
         "name": "new",
         "arguments": [
-          { "name": "name", "type": "string" },
-          { "name": "parent", "type": "uvm_component" }
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "parent",
+            "type": "uvm_component"
+          }
         ],
-        "body": [
+        "children": [
           {
             "type": "super_call",
             "method": "new",
-            "arguments": ["name", "parent"]
+            "arguments": [
+              "name",
+              "parent"
+            ]
           },
           {
             "type": "assignment",
@@ -60,9 +80,12 @@
         "type": "function",
         "name": "write",
         "arguments": [
-          { "name": "t", "type": "req_item" }
+          {
+            "name": "t",
+            "type": "req_item"
+          }
         ],
-        "body": [
+        "children": [
           {
             "type": "assignment",
             "operator": "=",

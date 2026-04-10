@@ -4,8 +4,16 @@
     "name": "agt",
     "base_type": "uvm_agent",
     "class_parameters": [
-      { "name": "DATA_WIDTH", "default": "32", "type": "int" },
-      { "name": "ADDR_WIDTH", "default": "16", "type": "int" }
+      {
+        "name": "DATA_WIDTH",
+        "default": "32",
+        "type": "int"
+      },
+      {
+        "name": "ADDR_WIDTH",
+        "default": "16",
+        "type": "int"
+      }
     ],
     "members": [
       {
@@ -13,8 +21,14 @@
         "type": "variable_declaration",
         "data_type": "drv",
         "parameters": [
-          { "name": "DATA_WIDTH", "value": "DATA_WIDTH" },
-          { "name": "ADDR_WIDTH", "value": "ADDR_WIDTH" }
+          {
+            "name": "DATA_WIDTH",
+            "value": "DATA_WIDTH"
+          },
+          {
+            "name": "ADDR_WIDTH",
+            "value": "ADDR_WIDTH"
+          }
         ],
         "name": "m_drv"
       },
@@ -23,8 +37,14 @@
         "type": "variable_declaration",
         "data_type": "mon",
         "parameters": [
-          { "name": "DATA_WIDTH", "value": "DATA_WIDTH" },
-          { "name": "ADDR_WIDTH", "value": "ADDR_WIDTH" }
+          {
+            "name": "DATA_WIDTH",
+            "value": "DATA_WIDTH"
+          },
+          {
+            "name": "ADDR_WIDTH",
+            "value": "ADDR_WIDTH"
+          }
         ],
         "name": "m_mon"
       },
@@ -33,7 +53,10 @@
         "type": "variable_declaration",
         "data_type": "uvm_sequencer",
         "parameters": [
-          { "name": "type", "value": "req_item" }
+          {
+            "name": "type",
+            "value": "req_item"
+          }
         ],
         "name": "m_sqr"
       },
@@ -48,14 +71,19 @@
         "type": "function",
         "name": "build_phase",
         "arguments": [
-          { "name": "phase", "type": "uvm_phase" }
+          {
+            "name": "phase",
+            "type": "uvm_phase"
+          }
         ],
-        "body": [
+        "children": [
           {
             "original_line": "super.build_phase(phase);",
             "type": "super_call",
             "method": "build_phase",
-            "arguments": ["phase"]
+            "arguments": [
+              "phase"
+            ]
           },
           {
             "original_line": "m_drv = drv #(DATA_WIDTH, ADDR_WIDTH)::type_id::create(\"m_drv\", this);",
@@ -102,22 +130,29 @@
         "type": "function",
         "name": "connect_phase",
         "arguments": [
-          { "name": "phase", "type": "uvm_phase" }
+          {
+            "name": "phase",
+            "type": "uvm_phase"
+          }
         ],
-        "body": [
+        "children": [
           {
             "original_line": "m_drv.seq_item_port.connect(m_sqr.seq_item_export);",
             "type": "method_call",
             "caller": "m_drv.seq_item_port",
             "method": "connect",
-            "arguments": ["m_sqr.seq_item_export"]
+            "arguments": [
+              "m_sqr.seq_item_export"
+            ]
           },
           {
             "original_line": "m_mon.m_cov_port.connect(m_cov.analysis_export);",
             "type": "method_call",
             "caller": "m_mon.m_cov_port",
             "method": "connect",
-            "arguments": ["m_cov.analysis_export"]
+            "arguments": [
+              "m_cov.analysis_export"
+            ]
           },
           {
             "original_line": "`uvm_info (get_type_name(), $sformatf (\"end of connect phase\"), UVM_NONE)",

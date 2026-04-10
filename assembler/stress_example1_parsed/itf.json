@@ -3,11 +3,23 @@
     "name": "itf",
     "base_type": "interface",
     "ports": [
-      { "name": "clk", "direction": "input", "type": "bit" }
+      {
+        "name": "clk",
+        "direction": "input",
+        "type": "bit"
+      }
     ],
     "parameters": [
-      { "name": "ADDR_WIDTH", "default": "99", "type": "parameter" },
-      { "name": "DATA_WIDTH", "default": "99", "type": "parameter" }
+      {
+        "name": "ADDR_WIDTH",
+        "default": "99",
+        "type": "parameter"
+      },
+      {
+        "name": "DATA_WIDTH",
+        "default": "99",
+        "type": "parameter"
+      }
     ],
     "members": [
       {
@@ -44,7 +56,7 @@
         "type": "clocking_block",
         "name": "drv_cb",
         "event": "posedge clk",
-        "body": [
+        "children": [
           {
             "type": "default_skew",
             "input_skew": "#1step",
@@ -53,12 +65,20 @@
           {
             "type": "clocking_signals",
             "direction": "output",
-            "signals": ["rst_n", "re", "we", "addr_i", "data_i"]
+            "signals": [
+              "rst_n",
+              "re",
+              "we",
+              "addr_i",
+              "data_i"
+            ]
           },
           {
             "type": "clocking_signals",
             "direction": "input",
-            "signals": ["data_o"]
+            "signals": [
+              "data_o"
+            ]
           }
         ]
       },
@@ -66,7 +86,7 @@
         "type": "clocking_block",
         "name": "mon_cb",
         "event": "posedge clk",
-        "body": [
+        "children": [
           {
             "type": "default_skew",
             "input_skew": "#1step",
@@ -75,12 +95,20 @@
           {
             "type": "clocking_signals",
             "direction": "input",
-            "signals": ["rst_n", "re", "we", "addr_i", "data_i"]
+            "signals": [
+              "rst_n",
+              "re",
+              "we",
+              "addr_i",
+              "data_i"
+            ]
           },
           {
             "type": "clocking_signals",
             "direction": "input",
-            "signals": ["data_o"]
+            "signals": [
+              "data_o"
+            ]
           }
         ]
       }
