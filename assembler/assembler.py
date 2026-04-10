@@ -898,19 +898,20 @@ class CodeAssembler:
                 
                 if node.type_name in self.modules:
                     rtl_mod = self.modules[node.type_name]
-                    
-                    f.write(f"// --- Container Module: {node.type_name}_rtl ---\n")
-                    self._write_module_header(f, rtl_mod)
-                    self._write_module_body(f, rtl_mod) # Writes internal wires
-                    
-                    # Instantiate children inside this container
-                    for child in node.children:
-                        if "uvm_sequencer" in child.type_name:
-                            self._insert_stimuli_fsm(f, child)
-                        else:
-                            self._instantiate_child(f, child)
 
-                    f.write("endmodule\n\n")
+                    if ((not "uvm_sequencer" in node.type_name) and (not "cov" in node.type_name)):
+                        f.write(f"// --- Container Module: {node.type_name}_rtl ---\n")
+                        self._write_module_header(f, rtl_mod)
+                        self._write_module_body(f, rtl_mod) # Writes internal wires
+                        
+                        # Instantiate children inside this container
+                        for child in node.children:
+                            if "uvm_sequencer" in child.type_name:
+                                self._insert_stimuli_fsm(f, child)
+                            else:
+                                self._instantiate_child(f, child)
+
+                        f.write("endmodule\n\n")
 
             # Add children to Queue
             for child in node.children:
@@ -946,12 +947,6 @@ class CodeAssembler:
         f.write("    clk = 0;\n")
         f.write("    forever #10 clk = ~clk;\n")
         f.write("  end\n\n")
-
-        f.write("  // Interface Instantiation\n")
-        f.write("  alu_if vif_inst (\n")
-        f.write("    .clk(clk),\n")
-        f.write("    .rst_n(rst_n_sys)\n")
-        f.write("  );\n\n")
 
         f.write("  // DUT Instance (Assuming standard hookups to vif)\n")
         f.write("  dut u_dut (\n")

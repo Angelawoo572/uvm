@@ -253,30 +253,6 @@ module agt_rtl #(
 
 endmodule
 
-// --- Container Module: uvm_sequencer_rtl ---
-module uvm_sequencer_rtl #(
-  parameter int DATA_WIDTH = 32,
-  parameter int ADDR_WIDTH = 16
-) (
-  input  logic      clk,
-  input  logic      rst_n_sys,
-  input  logic      req_seed_load_ext,
-  input  logic      [31:0] seed_ext
-);
-endmodule
-
-// --- Container Module: cov_rtl ---
-module cov_rtl #(
-  parameter int DATA_WIDTH = 32,
-  parameter int ADDR_WIDTH = 16
-) (
-  input  logic      clk,
-  input  logic      rst_n_sys,
-  input  logic      req_seed_load_ext,
-  input  logic      [31:0] seed_ext
-);
-endmodule
-
 // --- Top-Level Wrapper: tb_synth ---
 module tb_synth;
   logic clk;
@@ -293,12 +269,6 @@ module tb_synth;
     clk = 0;
     forever #10 clk = ~clk;
   end
-
-  // Interface Instantiation
-  alu_if vif_inst (
-    .clk(clk),
-    .rst_n(rst_n_sys)
-  );
 
   // DUT Instance (Assuming standard hookups to vif)
   dut u_dut (
