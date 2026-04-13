@@ -17,7 +17,7 @@ interface itf #(
   logic [DATA_WIDTH-1:0] data_i;
   logic [DATA_WIDTH-1:0] data_o;
 
-  // --- Modports (Converted from Clocking Blocks) ---
+  // --- Modports ---
   modport drv_cb (
     input clk,
     output rst_n,
@@ -39,6 +39,87 @@ interface itf #(
   );
 
 endinterface : itf
+
+interface seq_drv_if (
+  input logic clk,
+  input logic rst_n
+);
+
+  // --- Internal Variables ---
+  req_item_s req;
+  logic req_valid;
+  logic req_ready;
+  logic rsp_valid;
+  logic rsp_ready;
+
+  // --- Modports ---
+  modport SEQ (
+    input clk,
+    input rst_n,
+    output req,
+    output req_valid,
+    output rsp_ready,
+    input req_ready,
+    input rsp_valid
+  );
+
+  modport DRV (
+    input clk,
+    input rst_n,
+    input req,
+    input req_valid,
+    input rsp_ready,
+    output req_ready,
+    output rsp_valid
+  );
+
+endinterface : seq_drv_if
+
+interface seq_stim_if #(
+  parameter DATA_W = 32,
+  parameter NUM_CONSTRAINTS = 8
+) (
+  input logic clk,
+  input logic rst_n
+);
+
+  // --- Internal Variables ---
+  logic [DATA_W-1:0] seed;
+  logic req_seed_load;
+  logic req_valid;
+  logic req_ready;
+  req_item_s req;
+  logic rsp_valid;
+  logic rsp_ready;
+
+  // --- Modports ---
+  modport STIM (
+    input clk,
+    input rst_n,
+    input req,
+    input seed,
+    input req_seed_load,
+    input req_valid,
+    input rsp_ready,
+    output req_ready,
+    output solved_data,
+    output rsp_valid
+  );
+
+  modport SEQ (
+    input clk,
+    input rst_n,
+    input req_ready,
+    input solved_data,
+    input rsp_valid,
+    output req,
+    output seed,
+    output req_seed_load,
+    output req_valid,
+    output rsp_ready
+  );
+
+endinterface : seq_stim_if
 
 // --- Packed Struct Definitions ---
 typedef struct packed {
@@ -65,15 +146,9 @@ module drv_rtl #(
   parameter int ADDR_WIDTH = 16
 ) (
   itf.drv_cb vif,
+  seq_drv_if.DRV seq_drv,
   input  logic      clk,
-  input  logic      rst_n_sys,
-  output logic      req_valid,
-  input  logic      req_ready,
-  output logic      [31:0] lower_bound,
-  output logic      [31:0] upper_bound,
-  output logic      rsp_ready,
-  input  logic      rsp_valid,
-  input  req_item_s req
+  input  logic      rst_n_sys
 );
   
 typedef enum logic [2:0] {
@@ -89,20 +164,20 @@ state_t state, next_state;
 always_comb begin
   // Default assignments
   next_state = state;
-  req_valid  = 1'b0;
-  rsp_ready  = 1'b0;
+  seq_if.req_valid  = 1'b0;
+  seq_if.rsp_ready  = 1'b0;
 
   case (state)
     S_RESET: next_state = S_REQ_ITEM;
 
     S_REQ_ITEM: begin
-      req_valid = 1'b1;
-      if (req_ready) next_state = S_WAIT_RSP;
+      seq_if.req_valid = 1'b1;
+      if (seq_if.req_ready) next_state = S_WAIT_RSP;
     end
 
     S_WAIT_RSP: begin
-      rsp_ready = 1'b1;
-      if (rsp_valid) next_state = S_DRIVE;
+      seq_if.rsp_ready = 1'b1;
+      if (seq_if.rsp_valid) next_state = S_DRIVE;
     end
 
     S_DRIVE: begin
@@ -119,11 +194,11 @@ end
     state <= next_state;
     
     if (state == S_DRIVE) begin
-      vif.addr_i <= req.addr_i;
-      vif.data_i <= req.data_i;
-      vif.re <= req.re;
-      vif.we <= req.we;
-      vif.rst_n <= req.rst_n;
+      vif.addr_i <= seq_drv.req.addr_i;
+      vif.data_i <= seq_drv.req.data_i;
+      vif.re <= seq_drv.req.re;
+      vif.we <= seq_drv.req.we;
+      vif.rst_n <= seq_drv.req.rst_n;
     end
   end
 end
@@ -136,6 +211,7 @@ module mon_rtl #(
   parameter int ADDR_WIDTH = 16
 ) (
   itf.mon_cb vif,
+  seq_drv_if.DRV seq_drv,
   input  logic      clk,
   input  logic      rst_n_sys,
   output logic      mon_valid,
@@ -166,6 +242,7 @@ module example1basic_rtl #(
   parameter int ADDR_WIDTH = 16
 ) (
   itf.drv_cb vif,
+  seq_drv_if.DRV seq_drv,
   input  logic      clk,
   input  logic      rst_n_sys,
   output logic      mon_valid,
@@ -182,6 +259,7 @@ module env_rtl #(
   parameter int ADDR_WIDTH = 16
 ) (
   itf.drv_cb vif,
+  seq_drv_if.DRV seq_drv,
   input  logic      clk,
   input  logic      rst_n_sys,
   output logic      mon_valid,
@@ -190,6 +268,7 @@ module env_rtl #(
 );
   agt_rtl m_agt (
     .vif(vif.drv_cb),
+    .seq_drv(vif.DRV),
     .clk(clk),
     .rst_n_sys(rst_n_sys),
     .mon_valid(mon_valid),
@@ -205,52 +284,54 @@ module agt_rtl #(
   parameter int ADDR_WIDTH = 16
 ) (
   itf.drv_cb vif,
+  seq_drv_if.DRV seq_drv,
   input  logic      clk,
   input  logic      rst_n_sys,
   output logic      mon_valid,
   input  logic      req_seed_load_ext,
   input  logic      [31:0] seed_ext
 );
-  wire w_valid;
-  wire w_ready;
+  seq_stim_if #(.DATA_W(DATA_WIDTH)) stim_bus (.clk (clk), .rst_n (rst_n_sys));
+  seq_drv_if drv_bus (.clk (clk), .rst_n (rst_n_sys));
   req_item_s w_req;
 
   drv_rtl m_drv (
     .vif(vif.drv_cb),
+    .seq_drv(vif.DRV),
     .clk(clk),
-    .rst_n_sys(rst_n_sys),
-    .req_valid(w_valid),
-    .req_ready(w_ready),
-    .lower_bound(lower_bound),
-    .upper_bound(upper_bound),
-    .rsp_ready(w_rsp_ready),
-    .rsp_valid(w_rsp_valid),
-    .req(w_req)
+    .rst_n_sys(rst_n_sys)
   );
 
   mon_rtl m_mon (
     .vif(vif.mon_cb),
+    .seq_drv(vif.DRV),
     .clk(clk),
     .rst_n_sys(rst_n_sys),
     .mon_valid(mon_valid),
     .req(w_req)
   );
 
-  // --- Stimuli Generator (Replaces m_sqr) ---
-  stimuli_fsm_wide sqr_fsm (
-    .clk(clk), .rst_n(rst_n_sys), .seed(seed_ext),
-    .req_seed_load(req_seed_load_ext),
-    .req_valid(w_valid), .req_ready(w_ready),
-    .req(w_req), .rsp_valid(w_rsp_valid), .rsp_ready(w_rsp_ready)
+
+  seq_fsm u_seq_fsm (
+    .seq_if  (stim_bus.SEQ),
+    .seq_drv (drv_bus.SEQ),
+    .start   (1'b1)
   );
 
-  cov_rtl m_cov (
-    .clk(clk),
-    .rst_n_sys(rst_n_sys),
-    .req_seed_load_ext(req_seed_load_ext),
-    .seed_ext(seed_ext)
+  stimuli_fsm u_stimuli_fsm (
+    .stim_if (stim_bus.STIM)
   );
 
+  opcodes_cg cov (
+    .clk   (clk), .rst_n (rst_n_sys)
+    .sample (1'b1),
+    .m_item(w_req),
+    .collect_cov(),
+    .m_item_addr_i_MODE0_cnt(),
+    .m_item_addr_i_MODE1_cnt(),
+    .m_item_addr_i_MODE2_cnt(),
+    .m_item_addr_i_illegal_error()
+  );
 endmodule
 
 // --- Top-Level Wrapper: tb_synth ---

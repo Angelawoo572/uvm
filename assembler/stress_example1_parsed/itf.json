@@ -21,7 +21,7 @@
         "type": "parameter"
       }
     ],
-    "members": [
+    "children": [
       {
         "type": "variable_declaration",
         "data_type": "bit",

@@ -2,7 +2,7 @@
   "component": {
     "name": "tb",
     "base_type": "module",
-    "members": [
+    "children": [
       {
         "type": "import_declaration",
         "package": "uvm_pkg::*"

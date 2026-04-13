@@ -2,7 +2,7 @@
   "component": {
     "name": "example1basic",
     "base_type": "uvm_test",
-    "members": [
+    "children": [
       {
         "type": "variable_declaration",
         "data_type": "env",

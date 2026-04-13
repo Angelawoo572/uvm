@@ -100,7 +100,7 @@ class Classifier:
         elif "uvm_sequence_item" in base_type:
             self.registry.seq_items[class_name] = comp_dict
         elif "interface" in base_type:
-            self.registry.interface = comp_dict
+            self.registry.interfaces[class_name] = comp_dict
         else:
             # It might be a custom type extending another custom type (e.g., reset_req_item extends req_item)
             # Store it temporarily. We will resolve it in Pass 2.
@@ -152,11 +152,11 @@ class Classifier:
             fields.extend(self._get_inherited_fields(btype))
             
         # 2. Get this class's own fields
-        for member in cdict.get("members", []):
-            if member.get("type") == "variable_declaration":
+        for children in cdict.get("children", []):
+            if children.get("type") == "variable_declaration":
                 
                 # Check for nested sequence items (like full_item having req_item and rsp_item)
-                data_type = member.get("data_type")
+                data_type = children.get("data_type")
                 
                 # If the variable type is another known sequence item, map it to its struct type
                 if data_type in self.registry.seq_items:
@@ -165,9 +165,9 @@ class Classifier:
                     mapped_type = data_type
                 
                 fields.append({
-                    "name": member.get("name"),
+                    "name": children.get("name"),
                     "data_type": mapped_type,
-                    "original_line": member.get("original_line", "")
+                    "original_line": children.get("original_line", "")
                 })
                 
         return fields
@@ -179,18 +179,18 @@ class Classifier:
             'original_line': interface_dict.get("original_line", "")
         }
 
-        for member in interface_dict.get("members", []):
-            if member.get("type") == "variable_declaration":
-                self.registry.interfaces[if_name]['signals'].append(member)
-            elif member.get("type") == "clocking_block":
-                cb_name = member.get("name") 
+        for children in interface_dict.get("children", []):
+            if children.get("type") == "variable_declaration":
+                self.registry.interfaces[if_name]['signals'].append(children)
+            elif children.get("type") == "clocking_block":
+                cb_name = children.get("name") 
                 self.registry.interfaces[if_name]['modports'][cb_name] = {
                     "name": cb_name, "converted_from": "clocking_block",
-                    "signals": member.get("signals", []),
-                    "original_line": member.get("original_line", "")
+                    "signals": children.get("signals", []),
+                    "original_line": children.get("original_line", "")
                 }
-            elif member.get("type") == "modport":
-                self.registry.interfaces[if_name]['modports'][member.get("name")] = member
+            elif children.get("type") == "modport":
+                self.registry.interfaces[if_name]['modports'][children.get("name")] = children
 
 # --- Phase 2: Virtual Elaboration ---
 class Builder:
@@ -221,9 +221,9 @@ class Builder:
         return None
 
     def _find_method(self, class_dict, method_name):
-        for member in class_dict.get("members", []):
-            if member.get("type") in ["function", "task"] and member.get("name") == method_name:
-                return member
+        for children in class_dict.get("children", []):
+            if children.get("type") in ["function", "task"] and children.get("name") == method_name:
+                return children
         return None
 
     def _scan_build_phase(self, method_dict, current_hierarchy_node, class_dict):
@@ -233,7 +233,7 @@ class Builder:
                 rhs_str = statement.get("rhs", "")
                 if "create" in rhs_str and "type_id" in rhs_str:
                     inst_var_name = statement.get("lhs", "").strip()
-                    inst_type = self._lookup_member_type(class_dict, inst_var_name)
+                    inst_type = self._lookup_children_type(class_dict, inst_var_name)
                     if inst_type:
                         new_child = HierarchyNode(inst_var_name, inst_type)
                         current_hierarchy_node.add_child(new_child)
@@ -244,10 +244,10 @@ class Builder:
                 if "set" in method and "uvm_config_db" in caller:
                     current_hierarchy_node.configs.append(str(statement))
 
-    def _lookup_member_type(self, class_dict, var_name):
-        for member in class_dict.get("members", []):
-            if member.get("type") == "variable_declaration" and member.get("name") == var_name:
-                return member.get("data_type")
+    def _lookup_children_type(self, class_dict, var_name):
+        for children in class_dict.get("children", []):
+            if children.get("type") == "variable_declaration" and children.get("name") == var_name:
+                return children.get("data_type")
         return None
 
 # --- Phase 3 RTL Data Structure ---
@@ -306,10 +306,10 @@ class NetlistBuilder:
             vif_info = None
             
             if class_dict:
-                for member in class_dict.get("members", []):
-                    if member.get("type") == "virtual_interface":
-                        raw_if_type = member.get("interface_type", "alu_if")
-                        var_name = member.get("name", "vif")
+                for children in class_dict.get("children", []):
+                    if children.get("type") == "virtual_interface":
+                        raw_if_type = children.get("interface_type", "alu_if")
+                        var_name = children.get("name", "vif")
                         
                         parts = raw_if_type.split('.')
                         if_name = parts[0]
@@ -324,10 +324,11 @@ class NetlistBuilder:
             
             node.vif_def = vif_info
             rtl_mod.add_interface_port(node.vif_def['if_name'], node.vif_def['modport'], node.vif_def['var_name'])
+            rtl_mod.add_interface_port("seq_drv_if", "DRV", "seq_drv")
 
             # Pass the class_dict to the port generators so they can scan the AST
             if node.type_name in self.registry.drivers:
-                self._add_stimuli_handshake_ports(rtl_mod, class_dict)
+                self._add_driver_ports(rtl_mod, class_dict)
             elif node.type_name in self.registry.monitors:
                 self._add_monitor_ports(rtl_mod, class_dict)
 
@@ -378,16 +379,7 @@ class NetlistBuilder:
         
         for if_port in leaf_rtl.interface_ports:
             container_rtl.add_interface_port(if_port["if_name"], if_port["modport"], if_port["name"])
-
-    def _add_stimuli_handshake_ports(self, rtl_mod, class_dict):
-        # 1. Base protocol ports
-        rtl_mod.add_port("req_valid", "output")
-        rtl_mod.add_port("req_ready", "input")
-        rtl_mod.add_port("lower_bound", "output", "31")
-        rtl_mod.add_port("upper_bound", "output", "31")
-        rtl_mod.add_port("rsp_ready", "output")
-        rtl_mod.add_port("rsp_valid", "input")
-
+    def _add_driver_ports(self, rtl_mod, class_dict):
         run_phase = self._find_method(class_dict, "run_phase")
         if not run_phase: return
 
@@ -397,37 +389,131 @@ class NetlistBuilder:
             for stmt in run_phase.get("children", []):
                 if stmt.get("type") == "variable_declaration" and stmt.get("name") == var_name:
                     return stmt.get("data_type")
-            # Check global class members
-            for member in class_dict.get("members", []):
-                if member.get("type") == "variable_declaration" and member.get("name") == var_name:
-                    return member.get("data_type")
+            # Check global class children
+            for children in class_dict.get("children", []):
+                if children.get("type") == "variable_declaration" and children.get("name") == var_name:
+                    return children.get("data_type")
             return None
 
-        # 2. Recursively scan the run_phase AST for get_next_item and item_done
-        def scan_children(statements):
-            print("called")
+        req_name = "req"
+        req_struct_type = "logic" # Fallback
+
+        # Scan the run_phase AST for get_next_item to find the struct type
+        def scan_body(statements):
+            nonlocal req_struct_type
             for stmt in statements:
                 if stmt.get("type") == "method_call":
                     method = stmt.get("method", "")
                     args = stmt.get("arguments", [])
                     
                     if "get_next_item" in method and args:
-                        var_name = args[0]
-                        v_type = get_var_type(var_name)
+                        req_name = args[0]
+                        v_type = get_var_type(req_name)
                         if v_type:
-                            rtl_mod.add_port(var_name, "input", data_type=f"{v_type}_s")
-                            
-                    elif "item_done" in method and args:
-                        var_name = args[0]
-                        v_type = get_var_type(var_name)
-                        if v_type:
-                            rtl_mod.add_port(var_name, "output", data_type=f"{v_type}_s")
+                            req_struct_type = f"{v_type}_s"
                 
-                # Recurse into nested blocks (e.g., forever loops, ifs)
-                if "children" in stmt:
-                    scan_children(stmt["children"])
+                # Recurse into nested blocks 
+                if "body" in stmt: scan_body(stmt["body"])
+                if "children" in stmt: scan_body(stmt["children"])
 
-        scan_children(run_phase.get("children", []))
+        scan_body(run_phase.get("body", []) + run_phase.get("children", []))
+        self._generate_seq_drv_interface(req_name, req_struct_type)
+        self._generate_seq_stim_interface(req_name, req_struct_type)
+
+    def _generate_seq_drv_interface(self, req_name, req_struct_type):
+        if "seq_drv_if" in self.registry.interfaces:
+            return # Already created
+            
+        mock_itf_json = {
+            "name": "seq_drv_if",
+            "base_type": "interface",
+            "ports": [
+                {"name": "clk", "direction": "input", "type": "logic"},
+                {"name": "rst_n", "direction": "input", "type": "logic"}
+            ],
+            "parameters": [],
+            "children": [
+                {"type": "variable_declaration", "data_type": req_struct_type, "name": req_name},
+                {"type": "variable_declaration", "data_type": "logic", "name": "req_valid"},
+                {"type": "variable_declaration", "data_type": "logic", "name": "req_ready"},
+                {"type": "variable_declaration", "data_type": "logic", "name": "rsp_valid"},
+                {"type": "variable_declaration", "data_type": "logic", "name": "rsp_ready"},
+                {
+                    "type": "modport",
+                    "name": "SEQ",
+                    "children": [
+                        {"direction": "output", "signals": ["req", "req_valid", "rsp_ready"]},
+                        {"direction": "input", "signals": ["req_ready", "rsp_valid"]}
+                    ]
+                },
+                {
+                    "type": "modport",
+                    "name": "DRV",
+                    "children": [
+                        {"direction": "input", "signals": ["req", "req_valid", "rsp_ready"]},
+                        {"direction": "output", "signals": ["req_ready", "rsp_valid"]}
+                    ]
+                }
+            ]
+        }
+        
+        self.registry.interfaces["seq_drv_if"] = {"component": mock_itf_json}
+
+    def _generate_seq_stim_interface(self, req_name, req_struct_type):
+        if "seq_stim_if" in self.registry.interfaces:
+            return # Already created
+            
+        mock_itf_json = {
+            "name": "seq_stim_if",
+            "base_type": "interface",
+            "ports": [
+                {"name": "clk", "direction": "input", "type": "logic"},
+                {"name": "rst_n", "direction": "input", "type": "logic"}
+            ],
+            "parameters": [
+                {"name": "DATA_W", "value": "32"},
+                {"name": "NUM_CONSTRAINTS", "value": "8"}
+            ],
+            "children": [
+                {"type": "variable_declaration", "data_type": "logic [DATA_W-1:0]", "name": "seed"},
+                {"type": "variable_declaration", "data_type": "logic", "name": "req_seed_load"},
+                {"type": "variable_declaration", "data_type": "logic", "name": "req_valid"},
+                {"type": "variable_declaration", "data_type": "logic", "name": "req_ready"},
+                {"type": "variable_declaration", "data_type": req_struct_type, "name": req_name},
+                {"type": "variable_declaration", "data_type": "logic", "name": "rsp_valid"},
+                {"type": "variable_declaration", "data_type": "logic", "name": "rsp_ready"},
+                {
+                    "type": "modport",
+                    "name": "STIM",
+                    "children": [
+                        {
+                            "direction": "input", 
+                            "signals": ["clk", "rst_n", "req", "seed", "req_seed_load", "req_valid", "rsp_ready"]
+                        },
+                        {
+                            "direction": "output", 
+                            "signals": ["req_ready", "solved_data", "rsp_valid"]
+                        }
+                    ]
+                },
+                {
+                    "type": "modport",
+                    "name": "SEQ",
+                    "children": [
+                        {
+                            "direction": "input", 
+                            "signals": ["clk", "rst_n", "req_ready", "solved_data", "rsp_valid"]
+                        },
+                        {
+                            "direction": "output", 
+                            "signals": ["req", "seed", "req_seed_load", "req_valid", "rsp_ready"]
+                        }
+                    ]
+                }
+            ]
+        }
+        
+        self.registry.interfaces["seq_stim_if"] = {"component": mock_itf_json}
 
     def _add_monitor_ports(self, rtl_mod, class_dict):
         rtl_mod.add_port("mon_valid", "output")
@@ -451,10 +537,10 @@ class NetlistBuilder:
                     return name, dtype
             return None, None
 
-        # 1. Check class members
-        name, dtype = find_seq_item_var(class_dict.get("members", []))
+        # 1. Check class children
+        name, dtype = find_seq_item_var(class_dict.get("children", []))
         
-        # 2. Check local variables in run_phase if not found in members
+        # 2. Check local variables in run_phase if not found in children
         if not name:
             run_phase = self._find_method(class_dict, "run_phase")
             if run_phase:
@@ -478,16 +564,9 @@ class NetlistBuilder:
                 sequencer_inst = child
 
         if driver_inst and sequencer_inst:
-            rtl_mod.wires.append("wire w_valid;")
-            rtl_mod.wires.append("wire w_ready;")
-            
-            # Look at the synthesized driver to declare the matching internal structs
-            driver_rtl = self.modules.get(driver_inst.type_name)
-            if driver_rtl:
-                for port in driver_rtl.ports:
-                    # If it is a struct port (not logic), create a matching internal wire
-                    if port.get("data_type", "logic") != "logic" and port.get("data_type", "").endswith("_s"):
-                        rtl_mod.wires.append(f"{port['data_type']} w_{port['name']};")
+            rtl_mod.wires.append("seq_stim_if #(.DATA_W(DATA_WIDTH)) stim_bus (.clk (clk), .rst_n (rst_n_sys));")
+            rtl_mod.wires.append("seq_drv_if drv_bus (.clk (clk), .rst_n (rst_n_sys));")
+            rtl_mod.wires.append("req_item_s w_req;")
     
     def _find_class_dict(self, type_name):
         for bucket in [self.registry.drivers, self.registry.monitors,
@@ -498,15 +577,15 @@ class NetlistBuilder:
     
     def _find_method(self, class_dict, method_name):
         """
-        Searches the members of a JSON class dictionary for a specific task or function.
+        Searches the children of a JSON class dictionary for a specific task or function.
         """
         if not class_dict:
             return None
             
-        for member in class_dict.get("members", []):
-            # Check if the member is a task or function and matches the requested name
-            if member.get("type") in ["task", "function"] and member.get("name") == method_name:
-                return member
+        for children in class_dict.get("children", []):
+            # Check if the children is a task or function and matches the requested name
+            if children.get("type") in ["task", "function"] and children.get("name") == method_name:
+                return children
                 
         return None
     
@@ -534,9 +613,9 @@ class BehavioralSynthesizer:
         return self.modules
 
     def _find_method_in_hierarchy(self, class_dict, method_name):
-        for member in class_dict.get("members", []):
-            if member.get("type") in ["task", "function"] and member.get("name") == method_name:
-                return member
+        for children in class_dict.get("children", []):
+            if children.get("type") in ["task", "function"] and children.get("name") == method_name:
+                return children
         return None
 
     # ==========================================
@@ -589,20 +668,20 @@ state_t state, next_state;"""
 always_comb begin
   // Default assignments
   next_state = state;
-  req_valid  = 1'b0;
-  rsp_ready  = 1'b0;
+  seq_if.req_valid  = 1'b0;
+  seq_if.rsp_ready  = 1'b0;
 
   case (state)
     S_RESET: next_state = S_REQ_ITEM;
 
     S_REQ_ITEM: begin
-      req_valid = 1'b1;
-      if (req_ready) next_state = S_WAIT_RSP;
+      seq_if.req_valid = 1'b1;
+      if (seq_if.req_ready) next_state = S_WAIT_RSP;
     end
 
     S_WAIT_RSP: begin
-      rsp_ready = 1'b1;
-      if (rsp_valid) next_state = S_DRIVE;
+      seq_if.rsp_ready = 1'b1;
+      if (seq_if.rsp_valid) next_state = S_DRIVE;
     end
 
     S_DRIVE: begin
@@ -717,7 +796,7 @@ end"""
             
             if stype == "assignment":
                 lhs = stmt.get("lhs", "")
-                rhs = stmt.get("rhs", "")
+                rhs = ("seq_drv." if not is_monitor else "") + stmt.get("rhs", "")
                 
                 # Strip out .drv_cb and .mon_cb
                 lhs = re.sub(r'\.(drv_cb|mon_cb)', '', lhs)
@@ -771,7 +850,7 @@ class CodeAssembler:
             f.write("// Auto-Generated Synthesizable UVM Testbench\n")
             f.write("// ====================================================\n\n")
 
-            self._write_interface_rtl(f, self.registry.interface)
+            self._write_interfaces(f)
 
             # 1. Write the Packed Structs (from Phase 1)
             self._write_structs(f)
@@ -790,13 +869,18 @@ class CodeAssembler:
     # ==========================================
     # STEP 1: Interface definition
     # ==========================================
-    def _write_interface_rtl(self, f, itf_json):
+    def _write_interfaces(self, f):
+        print("  [Assemble] Writing Interfaces...")
+        for if_name, if_dict in self.registry.interfaces.items():
+            self._write_interface_rtl(f, if_name, if_dict)
+
+    def _write_interface_rtl(self, f, name, itf_json):
         """
-        Parses the itf.json dictionary and generates a synthesizable 
-        SystemVerilog interface, converting clocking blocks to modports.
+        Parses the interface dictionary and generates a synthesizable 
+        SystemVerilog interface. Now natively supports direct 'modport' types.
         """
-        comp = itf_json
-        name = comp.get("name", "itf")
+        # Handle both nested 'component' wrappers and direct dictionaries
+        comp = itf_json.get("component", itf_json)
         
         print(f"  [Assemble] Writing Interface: {name}")
         
@@ -804,52 +888,65 @@ class CodeAssembler:
         params = comp.get("parameters", [])
         param_strs = []
         for p in params:
-            param_strs.append(f"  parameter {p['name']} = {p['default']}")
+            p_name = p.get('name', '')
+            p_def = p.get('default', p.get('value', ''))
+            param_strs.append(f"  parameter {p_name} = {p_def}")
         joined_params = ',\n'.join(param_strs)
         param_block = f" #(\n{joined_params}\n)" if param_strs else ""
         
         # 2. Format Ports
         ports = comp.get("ports", [])
         port_strs = []
+        interface_port_names = [] # Save for auto-injecting into modports
         for p in ports:
-            port_strs.append(f"  {p['direction']} {p['type']} {p['name']}")
-        joined_params2 = ',\n'.join(port_strs)
-        port_block = f" (\n{joined_params2}\n);"
+            port_strs.append(f"  {p.get('direction', 'input')} {p.get('type', 'logic')} {p.get('name', '')}")
+            interface_port_names.append(p.get('name', ''))
+        joined_ports = ',\n'.join(port_strs)
+        port_block = f" (\n{joined_ports}\n);" if port_strs else ";"
         
         # Write Header
         f.write(f"interface {name}{param_block}{port_block}\n\n")
-        f.write("  // --- Internal Variables ---\n")
         
         # 3. Format Variable Declarations
-        members = comp.get("members", [])
-        for m in members:
-            if m.get("type") == "variable_declaration":
-                f.write(f"  {m['data_type']} {m['name']};\n")
-                
-        f.write("\n  // --- Modports (Converted from Clocking Blocks) ---\n")
+        children = comp.get("children", [])
+        has_vars = any(m.get("type") == "variable_declaration" for m in children)
         
-        # 4. Transform Clocking Blocks to Modports
-        for m in members:
-            if m.get("type") == "clocking_block":
-                cb_name = m.get("name")
+        if has_vars:
+            f.write("  // --- Internal Variables ---\n")
+            for m in children:
+                if m.get("type") == "variable_declaration":
+                    f.write(f"  {m.get('data_type', 'logic')} {m.get('name')};\n")
+            f.write("\n")
                 
-                # It is standard practice to include the interface clock as an input in the modport
-                modport_signals = ["input clk"] 
-                
-                # Dig into the children to find 'clocking_signals'
-                for child in m.get("children", []):
-                    if child.get("type") == "clocking_signals":
-                        direction = child.get("direction")
-                        for sig in child.get("signals", []):
-                            # Map the direction directly from the clocking_signals block
-                            modport_signals.append(f"{direction} {sig}")
-                
-                # Format with newlines for clean SV code
-                formatted_sigs = ",\n    ".join(modport_signals)
-                f.write(f"  modport {cb_name} (\n    {formatted_sigs}\n  );\n\n")
+        # 4. Parse Native Modports
+        has_modports = any(m.get("type") == "modport" or m.get("type") == "clocking_block" for m in children)
+        
+        if has_modports:
+            f.write("  // --- Modports ---\n")
+            for m in children:
+                if m.get("type") == "modport" or m.get("type") == "clocking_block":
+                    mp_name = m.get("name")
+                    modport_signals = []
+                    
+                    # Auto-inject interface-level ports (clk, rst_n) as inputs to the modport
+                    for ip_name in interface_port_names:
+                        modport_signals.append(f"input {ip_name}")
+                    
+                    # Process the explicitly defined signals from the JSON
+                    for port_group in m.get("children", []):
+                        direction = port_group.get("direction", "input")
+                        for sig in port_group.get("signals", []):
+                            sig_str = f"{direction} {sig}"
+                            # Prevent duplicates if they explicitly put clk in the JSON signals
+                            if sig_str not in modport_signals:
+                                modport_signals.append(sig_str)
+                    
+                    # Format with newlines for clean SV code
+                    formatted_sigs = ",\n    ".join(modport_signals)
+                    f.write(f"  modport {mp_name} (\n    {formatted_sigs}\n  );\n\n")
                 
         f.write(f"endinterface : {name}\n\n")
-
+    
     # ==========================================
     # STEP 1: Packed Structs
     # ==========================================
@@ -1024,13 +1121,28 @@ class CodeAssembler:
         f.write("\n")
 
     def _insert_stimuli_fsm(self, f, child_node):
-        f.write(f"  // --- Stimuli Generator (Replaces {child_node.name}) ---\n")
-        f.write("  stimuli_fsm_wide sqr_fsm (\n")
-        f.write("    .clk(clk), .rst_n(rst_n_sys), .seed(seed_ext),\n")
-        f.write("    .req_seed_load(req_seed_load_ext),\n")
-        f.write("    .req_valid(w_valid), .req_ready(w_ready),\n")
-        f.write("    .req(w_req), .rsp_valid(w_rsp_valid), .rsp_ready(w_rsp_ready)\n")
-        f.write("  );\n\n")
+        f.write("""
+  seq_fsm u_seq_fsm (
+    .seq_if  (stim_bus.SEQ),
+    .seq_drv (drv_bus.SEQ),
+    .start   (1'b1)
+  );
+
+  stimuli_fsm u_stimuli_fsm (
+    .stim_if (stim_bus.STIM)
+  );
+
+  opcodes_cg cov (
+    .clk   (clk), .rst_n (rst_n_sys)
+    .sample (1'b1),
+    .m_item(w_req),
+    .collect_cov(),
+    .m_item_addr_i_MODE0_cnt(),
+    .m_item_addr_i_MODE1_cnt(),
+    .m_item_addr_i_MODE2_cnt(),
+    .m_item_addr_i_illegal_error()
+  );
+""")
 
     def _instantiate_child(self, f, child_node):
         child_rtl_name = f"{child_node.type_name}_rtl"
@@ -1039,6 +1151,9 @@ class CodeAssembler:
         # Simple heuristic: If it's a top-level container (Env/Test), use (.*)
         if "env" in child_rtl_name.lower() or "test" in child_rtl_name.lower():
             f.write(f"  {child_rtl_name} {inst_name} (.*);\n\n")
+            return
+        
+        if "cov" in child_rtl_name.lower():
             return
 
         # Otherwise, map the ports specifically (for Agents -> Drv/Mon)

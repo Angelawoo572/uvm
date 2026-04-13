@@ -3,7 +3,7 @@
     {
       "name": "req_item",
       "base_type": "uvm_sequence_item",
-      "members": [
+      "children": [
         {
           "type": "compiler_directive",
           "directive": "include",
@@ -50,7 +50,7 @@
     {
       "name": "reset_req_item",
       "base_type": "req_item",
-      "members": [
+      "children": [
         {
           "type": "constraint",
           "name": "force_rst",
@@ -64,7 +64,7 @@
       "base_parameters": [
         "req_item"
       ],
-      "members": [
+      "children": [
         {
           "type": "variable_declaration",
           "data_type": "req_item",
@@ -193,7 +193,7 @@
       "base_parameters": [
         "req_item"
       ],
-      "members": [
+      "children": [
         {
           "type": "variable_declaration",
           "data_type": "reset_req_item",

@@ -14,7 +14,7 @@
         "type": "int"
       }
     ],
-    "members": [
+    "children": [
       {
         "type": "virtual_interface",
         "name": "vif",

@@ -7,7 +7,7 @@
         "type": "itf"
       }
     ],
-    "members": [
+    "children": [
       {
         "type": "compiler_directive",
         "directive": "include",

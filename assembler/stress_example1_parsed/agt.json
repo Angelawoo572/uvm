@@ -15,7 +15,7 @@
         "type": "int"
       }
     ],
-    "members": [
+    "children": [
       {
         "original_line": "drv #(DATA_WIDTH, ADDR_WIDTH) m_drv;",
         "type": "variable_declaration",
