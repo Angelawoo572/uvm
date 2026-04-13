@@ -55,30 +55,7 @@ Solver logic ideas:
 - New bound = [min >> short_bit : max >> short_bit] --> (output << short_bit || short_val) // in this case short_bit = 2, short_val == 2'b0
 - Provide error handling for when no solution is found
 ```
-2. Constraints with multiple ranges:
-```
-constraint disjoint_ranges {
-  (val >= 0 && val <= 10) || (val >= 90 && val <= 100);
-}
-```
-```
-constraint range_limit {
-  addr inside {[0:63]}; 
-}
-constraint exclude_reserved {
-  !(addr inside {[16:31]}); 
-}
-```
-```
-constraint iter_count_c {
-    iteration_count inside {[1:10]}; // (1, 10)
-}
-constraint iter_count_short_c {
-    iteration_count < 5; // (0, 4) 
-}
-```
-
-3. Ordered constraints:
+2. Ordered constraints:
 ```
 constraint within_range { 
     start_addr < (32'h0104_0000 - block_size*4);
@@ -99,7 +76,7 @@ Solver logic ideas:
 - Seq <-> stim FSM should provide additional inputs (e.g. block_size, opcode) to solver module
 ```
 
-4. Two rand variables:
+3. Two rand variables:
 ```
 constraint size_c { tkeep.size() == tdata.size(); }
 ```
