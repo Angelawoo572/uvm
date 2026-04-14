@@ -850,10 +850,9 @@ class CodeAssembler:
             f.write("// Auto-Generated Synthesizable UVM Testbench\n")
             f.write("// ====================================================\n\n")
 
-            self._write_interfaces(f)
-
-            # 1. Write the Packed Structs (from Phase 1)
             self._write_structs(f)
+
+            self._write_interfaces(f)
 
             # 2. Write Leaf Modules (Drivers & Monitors)
             self._write_leaf_modules(f)
@@ -865,6 +864,22 @@ class CodeAssembler:
             self._write_top_level(f)
             
         print(f"Success! SystemVerilog written to {self.output_file}")
+
+    # ==========================================
+    # STEP 0: Packed Structs
+    # ==========================================
+    def _write_structs(self, f):
+        print("  [Assemble] Writing Packed Structs...")
+        if not self.registry.structs:
+            return
+
+        f.write("// --- Packed Struct Definitions ---\n")
+        for s_name, s_dict in self.registry.structs.items():
+            f.write(f"typedef struct packed {{\n")
+            for field in s_dict.get("fields", []):
+                # E.g., "  logic [31:0] data_i;"
+                f.write(f"  {field['data_type']} {field['name']};\n")
+            f.write(f"}} {s_name};\n\n")
     
     # ==========================================
     # STEP 1: Interface definition
@@ -946,22 +961,6 @@ class CodeAssembler:
                     f.write(f"  modport {mp_name} (\n    {formatted_sigs}\n  );\n\n")
                 
         f.write(f"endinterface : {name}\n\n")
-    
-    # ==========================================
-    # STEP 1: Packed Structs
-    # ==========================================
-    def _write_structs(self, f):
-        print("  [Assemble] Writing Packed Structs...")
-        if not self.registry.structs:
-            return
-
-        f.write("// --- Packed Struct Definitions ---\n")
-        for s_name, s_dict in self.registry.structs.items():
-            f.write(f"typedef struct packed {{\n")
-            for field in s_dict.get("fields", []):
-                # E.g., "  logic [31:0] data_i;"
-                f.write(f"  {field['data_type']} {field['name']};\n")
-            f.write(f"}} {s_name};\n\n")
 
     # ==========================================
     # STEP 2: Leaf Modules

@@ -2,6 +2,25 @@
 // Auto-Generated Synthesizable UVM Testbench
 // ====================================================
 
+// --- Packed Struct Definitions ---
+typedef struct packed {
+  bit [ADDR_WIDTH-1:0] addr_i;
+  bit we;
+  bit re;
+  bit [DATA_WIDTH-1:0] data_i;
+  logic [DATA_WIDTH-1:0] data_o;
+  bit rst_n;
+} req_item_s;
+
+typedef struct packed {
+  bit [ADDR_WIDTH-1:0] addr_i;
+  bit we;
+  bit re;
+  bit [DATA_WIDTH-1:0] data_i;
+  logic [DATA_WIDTH-1:0] data_o;
+  bit rst_n;
+} reset_req_item_s;
+
 interface itf #(
   parameter ADDR_WIDTH = 99,
   parameter DATA_WIDTH = 99
@@ -120,25 +139,6 @@ interface seq_stim_if #(
   );
 
 endinterface : seq_stim_if
-
-// --- Packed Struct Definitions ---
-typedef struct packed {
-  bit [ADDR_WIDTH-1:0] addr_i;
-  bit we;
-  bit re;
-  bit [DATA_WIDTH-1:0] data_i;
-  logic [DATA_WIDTH-1:0] data_o;
-  bit rst_n;
-} req_item_s;
-
-typedef struct packed {
-  bit [ADDR_WIDTH-1:0] addr_i;
-  bit we;
-  bit re;
-  bit [DATA_WIDTH-1:0] data_i;
-  logic [DATA_WIDTH-1:0] data_o;
-  bit rst_n;
-} reset_req_item_s;
 
 // --- Leaf Module: drv_rtl ---
 module drv_rtl #(
