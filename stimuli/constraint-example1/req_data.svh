@@ -11,3 +11,13 @@ typedef struct packed {
   bit we;
   bit re;
 } data_to_driver_t; // seq_fsm to driver_fsm
+
+// new 
+typedef struct packed {
+  bit [ADDR_WIDTH-1:0] addr_i;
+  bit we;
+  bit re;
+  bit [DATA_WIDTH-1:0] data_i;
+  logic [DATA_WIDTH-1:0] data_o;
+  bit rst_n;
+} req_item_s;
