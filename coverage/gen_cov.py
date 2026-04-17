@@ -145,11 +145,48 @@ def gen_hierarchy_cross(ref, mod, saved_covp, counter_width=16):
     mod.add_line("    end")
     mod.add_line("end")
 
+def prune_combinations(all_combinations, saved_covp):
+    """
+    Filters out combinations that should be ignored based on 
+    coverpoint-level ignore_bins or cross-level ignore specifications.
+    """
+    pruned_combinations = []
+    
+    # 1. Identify which indices for each coverpoint are "ignored"
+    # This assumes your coverpoint JSON includes an 'ignore_bins' list
+    # that mirrors the structure of the 'bins' list.
+    ignore_map = []
+    for covp in saved_covp:
+        # Create a set of indices that are flagged as ignore_bins
+        # (Usually, this is empty if you separate bins and ignore_bins early)
+        ignores = set(covp.get('ignore_bin_indices', [])) 
+        ignore_map.append(ignores)
+
+    # 2. Filter the product
+    for combo in all_combinations:
+        is_ignored = False
+        
+        # Check if any index in the combination is a forbidden index
+        for cp_idx, bin_idx in enumerate(combo):
+            if bin_idx in ignore_map[cp_idx]:
+                is_ignored = True
+                break
+        
+        if not is_ignored:
+            pruned_combinations.append(combo)
+            
+    return pruned_combinations
+
 def gen_flat_cross(ref, mod, saved_covp, counter_width=16):
     # Calculate the total number of bins by multiplying the lengths of all bins
     bin_counts = [len(covp.get('bins')) for covp in saved_covp]
-    total_bins = math.prod(bin_counts) if bin_counts else 0
-    
+
+    # Generate all index combinations
+    ranges = [range(n) for n in bin_counts]
+    all_combinations = list(itertools.product(*ranges))
+    all_combinations = prune_combinations(all_combinations, saved_covp)
+    total_bins = len(all_combinations)
+
     # Generate the concatenated signal string, e.g., "{cp1_idx_index, cp2_idx_index}"
     covp_refs = [f"{covp.get('reference')}_index" for covp in saved_covp]
     concat_sig = "{" + ", ".join(covp_refs) + "}"
@@ -159,10 +196,6 @@ def gen_flat_cross(ref, mod, saved_covp, counter_width=16):
     mod.add_line(f"logic [{counter_width-1}:0] {ref}_ctr_r [0:{total_bins-1}];")
     mod.add_line(f"logic [{counter_width-1}:0] {ref}_ctr_n [0:{total_bins-1}];")
     mod.add_line(f"logic {ref}_illegal_error;")
-
-    # Generate all index combinations
-    ranges = [range(n) for n in bin_counts]
-    all_combinations = list(itertools.product(*ranges))
 
     # Assign outputs mapped from the flat array
     mod.add_line("")
@@ -195,9 +228,7 @@ def gen_flat_cross(ref, mod, saved_covp, counter_width=16):
         case_cond_str = "{" + ", ".join(case_cond_parts) + "}"
         mod.add_line(f"            {case_cond_str}: {ref}_ctr_n[{flat_idx}] = {ref}_ctr_r[{flat_idx}] + 1;")
         
-    mod.add_line("            default: begin")
-    mod.add_line(f"                {ref}_illegal_error = 1;")
-    mod.add_line("            end")
+    mod.add_line("            default: ; // no bin hit")
     mod.add_line("        endcase")
     mod.add_line("    end")
     mod.add_line("end")
@@ -247,7 +278,7 @@ def generate_coverpoint(cp_data, counter_width=16):
     num_bins = len(bins)
     
     # Internal signals
-    bin_width = math.ceil(math.log2(num_bins))
+    bin_width = max(math.ceil(math.log2(num_bins)), 1)
     mod.add_line(f"// Bin Counters for {ref}")
     mod.add_line(f"logic [{counter_width-1}:0] {ref}_ctr_r [{num_bins-1}:0];")
     mod.add_line(f"logic [{counter_width-1}:0] {ref}_ctr_n [{num_bins-1}:0];")
@@ -270,7 +301,7 @@ def generate_coverpoint(cp_data, counter_width=16):
     mod.add_line(f"    {ref}_ctr_n = {ref}_ctr_r;")
     mod.add_line(f"    {ref}_illegal_error = 0;")
     mod.add_line("")
-    mod.add_line(f"    case ({cp_data['expression']})")
+    mod.add_line(f"    case ({cp_data['expression']}) inside")
     
     for idx, b in enumerate(bins):
         states = b['states']
@@ -284,7 +315,10 @@ def generate_coverpoint(cp_data, counter_width=16):
         states_str = ", ".join(map(str, states))
         mod.add_line(f"        {states_str}: {ref}_illegal_error = 1;")
 
-    mod.add_line("        default: ; // No bin hit")
+    has_default = any("default" in b['states'] for b in bins + illegal_bins)
+    if not has_default:
+        mod.add_line("        default: ; // No bin hit")
+    
     mod.add_line("    endcase")
     mod.add_line("end")
 
@@ -327,7 +361,6 @@ def generate_covergroup(cg_data):
         
         # bubble up outputs (prefix with instance name)
         for name, width in cp_mod.outputs.items():
-            print(f"cg name: {name} width {width}")
             mod.add_output(f"{name}", width)
 
     # Process crosses
@@ -417,7 +450,6 @@ def gen_output_cg(cg, output_table):
     # create mux for each output signal
     for output, width in cg.outputs.items():
         mod.add_input(output, width)
-        print(f"output: {output} width: {width}")
         mod.add_line(f"logic[7:0] {output}_byte;")
         mod.add_line(f"logic {output}_done;")
         mod.add_line("")
@@ -548,6 +580,7 @@ def main():
     parser = argparse.ArgumentParser(description="Convert Coverage JSON to Synthesizable SystemVerilog")
     parser.add_argument("input_json", help="Path to the input JSON file")
     parser.add_argument("output_sv", help="Path to output SV file", default="coverage_model.sv")
+    parser.add_argument("constants", help="Path to constants.svh")
     args = parser.parse_args()
 
     try:
@@ -589,7 +622,8 @@ def main():
     # Write to file
     with open(args.output_sv, 'w') as f:
         f.write("// Auto-generated SystemVerilog Coverage Model\n")
-        f.write(f"// Generated from: {args.input_json}\n\n")
+        f.write(f"// Generated from: {args.input_json}\n")
+        f.write(f"`include {args.constants}\n\n")
         
         for mod in all_modules:
             f.write(mod.generate_sv())

@@ -19,7 +19,7 @@ module drv_rtl #(
     } state_t;
     
     state_t state, next_state;
-    data_to_driver_t temp;
+    req_item_s temp;
     always_ff @(posedge clk or negedge rst_n_sys) begin
       if (!rst_n_sys) begin
         state <= S_RESET;
