@@ -340,7 +340,14 @@ def _extract_default_value(node: Any) -> str:
     if not isinstance(node, dict):
         return ""
 
-    for key in ("initializer", "default", "expr"):
+    init = node.get("initializer")
+    if isinstance(init, dict):
+        expr = init.get("expr") if init.get("kind") == "EqualsValueClause" else None
+        txt = _expr_to_text(expr if isinstance(expr, dict) else init)
+        if txt:
+            return txt
+
+    for key in ("default", "expr"):
         val = node.get(key)
         if isinstance(val, dict):
             txt = _expr_to_text(val)
@@ -356,11 +363,15 @@ def _extract_arg_from_port_node(port: Dict[str, Any]) -> List[Dict[str, str]]:
     direction_text = _direction_to_text(port.get("direction"))
 
     direct_name = _expr_to_text(port.get("name"))
+    if not direct_name and isinstance(port.get("declarator"), dict):
+        direct_name = _expr_to_text(port["declarator"].get("name"))
     if direct_name:
         arg: Dict[str, str] = {"name": direct_name, "type": data_type or "<implicit>"}
         if direction_text:
             arg["direction"] = direction_text
-        default_txt = _extract_default_value(port)
+        default_txt = _extract_default_value(port.get("declarator")) if isinstance(port.get("declarator"), dict) else ""
+        if not default_txt:
+            default_txt = _extract_default_value(port)
         if default_txt:
             arg["default"] = default_txt
         out.append(arg)
@@ -460,7 +471,7 @@ def _extract_monitor_class_parameters(class_decl: Dict[str, Any]) -> List[str]:
     if not isinstance(params_node, dict):
         return []
 
-    params = params_node.get("parameters")
+    params = params_node.get("declarations") or params_node.get("parameters")
     if not isinstance(params, list):
         return []
 
@@ -468,6 +479,21 @@ def _extract_monitor_class_parameters(class_decl: Dict[str, Any]) -> List[str]:
     for p in params:
         if not isinstance(p, dict) or p.get("kind") == "Comma":
             continue
+        if p.get("kind") == "ParameterDeclaration":
+            ptype = _type_to_text(p.get("type"))
+            decls = p.get("declarators")
+            if isinstance(decls, list):
+                for d in decls:
+                    if not isinstance(d, dict) or d.get("kind") == "Comma":
+                        continue
+                    name = _expr_to_text(d.get("name"))
+                    init = _extract_default_value(d)
+                    txt = f"{ptype} {name}".strip()
+                    if init:
+                        txt += f"={init}"
+                    if txt:
+                        out.append(txt)
+                continue
         txt = _minify_ws(_collect_tokens(p))
         if txt:
             out.append(txt)
@@ -694,6 +720,60 @@ def _invocation_to_method_call(expr: Dict[str, Any]) -> Dict[str, Any]:
         "arguments": args,
     }
 
+
+
+def _macro_usage_to_stmt(macro_usage: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    if not isinstance(macro_usage, dict) or macro_usage.get("kind") != "MacroUsage":
+        return None
+
+    directive = macro_usage.get("directive")
+    name = directive.get("text", "") if isinstance(directive, dict) else ""
+    args_node = macro_usage.get("args")
+    args: List[str] = []
+    if isinstance(args_node, dict):
+        for a in args_node.get("args", []):
+            if isinstance(a, dict) and a.get("kind") != "Comma":
+                txt = _minify_ws(_collect_tokens(a))
+                if txt:
+                    args.append(txt)
+
+    stmt: Dict[str, Any] = {"type": "function_call", "name": name, "arguments": args}
+    lname = name.lower()
+    if "uvm_fatal" in lname:
+        stmt["semantic_type"] = "uvm_fatal"
+    elif "uvm_error" in lname:
+        stmt["semantic_type"] = "uvm_error"
+    elif "uvm_warning" in lname:
+        stmt["semantic_type"] = "uvm_warning"
+    elif "uvm_info" in lname:
+        stmt["semantic_type"] = "uvm_info"
+    return stmt
+
+
+def _collect_macro_stmts(node: Any) -> List[Dict[str, Any]]:
+    out: List[Dict[str, Any]] = []
+    seen = set()
+
+    def walk(x: Any):
+        if isinstance(x, dict):
+            for v in x.values():
+                if isinstance(v, list):
+                    for item in v:
+                        if isinstance(item, dict) and item.get("kind") == "Directive":
+                            syntax = item.get("syntax")
+                            stmt = _macro_usage_to_stmt(syntax) if isinstance(syntax, dict) else None
+                            if stmt is not None:
+                                sig = (stmt.get("name"), tuple(stmt.get("arguments", [])))
+                                if sig not in seen:
+                                    seen.add(sig)
+                                    out.append(stmt)
+                walk(v)
+        elif isinstance(x, list):
+            for i in x:
+                walk(i)
+
+    walk(node)
+    return out
 
 def _classify_monitor_invocation(expr: Dict[str, Any]) -> Dict[str, Any]:
     call_obj = _invocation_to_method_call(expr)
@@ -929,6 +1009,19 @@ def _walk_monitor_procedural(
             )
             return
 
+        if kind == "EmptyStatement":
+            for stmt in _collect_macro_stmts(node):
+                events.append(
+                    MonitorEvent(
+                        kind="call",
+                        text=f"{stmt.get('name')}({', '.join(stmt.get('arguments', []))});",
+                        path=_path_from_stack(cond_stack),
+                        semantic_type=stmt.get("semantic_type"),
+                        extra=stmt,
+                    )
+                )
+            return
+
         if kind == "TimingControlStatement":
             info = _extract_event_control_info(node.get("timingControl"))
             if info:
@@ -946,6 +1039,16 @@ def _walk_monitor_procedural(
             return
 
         if kind == "ExpressionStatement":
+            for stmt in _collect_macro_stmts(node):
+                events.append(
+                    MonitorEvent(
+                        kind="call",
+                        text=f"{stmt.get('name')}({', '.join(stmt.get('arguments', []))});",
+                        path=_path_from_stack(cond_stack),
+                        semantic_type=stmt.get("semantic_type"),
+                        extra=stmt,
+                    )
+                )
             expr = node.get("expr")
             if isinstance(expr, dict):
                 expr_kind = expr.get("kind")
@@ -1082,6 +1185,10 @@ def _build_stmt_list(node: Any, handle_types: Dict[str, str]) -> List[Dict[str, 
         )
         return out
 
+    if kind == "EmptyStatement":
+        out.extend(_collect_macro_stmts(node))
+        return out
+
     if kind == "TimingControlStatement":
         info = _extract_event_control_info(node.get("timingControl"))
         if info:
@@ -1096,6 +1203,7 @@ def _build_stmt_list(node: Any, handle_types: Dict[str, str]) -> List[Dict[str, 
         return out
 
     if kind == "ExpressionStatement":
+        out.extend(_collect_macro_stmts(node))
         expr = node.get("expr")
         if not isinstance(expr, dict):
             return out
