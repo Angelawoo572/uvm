@@ -1,6 +1,9 @@
 all:
-	python3 parsed_to_cov.py outputs/cov_parsed.json outputs/constants.svh outputs/cov_usable.json
+	python3 parsed_to_cov.py outputs/cov_parsed.json outputs/cov_usable.json outputs/constants.svh
 	python3 gen_cov.py outputs/cov_usable.json outputs/coverage.sv
+
+debug:
+	python3 -m pdb gen_cov.py outputs/cov_usable.json outputs/coverage.sv
 
 parse_1:
 	python ../parser/sv_to_json.py ../uvm_samples/stress/example1-basic/cov.svh outputs/cov_parsed.json

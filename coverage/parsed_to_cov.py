@@ -1,5 +1,67 @@
 import json
 import argparse
+import re
+
+# map constant names provided by constants.svh to values 
+def build_constants_map(filepath):
+    constants_map = {}
+    
+    # magic regex
+    pattern = re.compile(r'(?:localparam|parameter)\s+(?:[\w\[\]:]+\s+)?(\w+)\s*=\s*([^;]+);')
+
+    try:
+        with open(filepath, 'r') as file:
+            for line in file:
+                # Strip out inline comments so they don't mess up parsing
+                line = line.split('//')[0]
+                
+                match = pattern.search(line)
+                if match:
+                    name = match.group(1)
+                    val_str = match.group(2).strip()
+
+                    # Try to evaluate the value to an integer
+                    try:
+                        # Handles standard base-10 integers
+                        constants_map[name] = int(val_str)
+                        
+                    except ValueError:
+                        # Handles basic SystemVerilog tick notation (e.g., 32'hF, 'd12)
+                        if "'" in val_str:
+                            try:
+                                _, base_and_val = val_str.split("'")
+                                base = base_and_val[0].lower()
+                                raw_val = base_and_val[1:].replace('_', '') # Strip underscores
+                                
+                                if base == 'h':
+                                    constants_map[name] = int(raw_val, 16)
+                                elif base == 'b':
+                                    constants_map[name] = int(raw_val, 2)
+                                elif base == 'd':
+                                    constants_map[name] = int(raw_val, 10)
+                                elif base == 'o':
+                                    constants_map[name] = int(raw_val, 8)
+                            except Exception:
+                                print(f"Warning: Could not parse SV notation for {name}: {val_str}")
+                        else:
+                            print(f"Warning: Could not parse value for {name}: {val_str}")
+                            
+    except FileNotFoundError:
+        print(f"Error: Could not find constants file at {filepath}")
+
+    return constants_map
+
+# returns value of constant
+def resolve_constant(name):
+    """Resolves a SystemVerilog constant name to an integer."""
+    if name in CONSTANTS_MAP:
+        return CONSTANTS_MAP[name]
+    try:
+        # Fallback in case 'left' or 'right' is already a raw integer string
+        return int(name) 
+    except ValueError:
+        print(f"Warning: Could not resolve constant '{name}'")
+        return 0
 
 def find_nodes(node, kind):
     """Recursively search the AST for nodes of a specific 'kind'."""
@@ -41,9 +103,20 @@ def extract_bin(bin_node):
     initializer = bin_node.get('initializer', {})
     kind = initializer.get('kind')
     state_str = ""
+    extracted_bins = []
+
+    # Check if this is an array bin declaration (e.g., bins VALID[])
+    is_array_bin = False
+    size_node = bin_node.get('size')
+    if size_node and size_node.get('kind') == "CoverageBinsArraySize":
+        is_array_bin = True
 
     if kind == "ExpressionCoverageBinInitializer":
-        state_str = initializer.get('expr', '').get('identifier', {}).get('text', '')
+        state_str = resolve_constant(initializer.get('expr', '').get('identifier', {}).get('text', ''))
+        extracted_bins.append({
+            "reference": bin_name,
+            "states": [state_str] if state_str else [] 
+        })
 
     elif kind == "RangeCoverageBinInitializer":
         values = []
@@ -58,8 +131,23 @@ def extract_bin(bin_node):
             elif valueKind == "ValueRangeExpression":
                 left = value.get('left', {}).get('identifier', {}).get('text', '')
                 right = value.get('right', {}).get('identifier', {}).get('text', '')
-                expression = f"[{left}:{right}]"
-                values.append(expression)
+                if is_array_bin:
+                    start_val = resolve_constant(left)
+                    end_val = resolve_constant(right)
+                    
+                    # Create an individual bin dict for each value in the range
+                    for val in range(start_val, end_val + 1):
+                        extracted_bins.append({
+                            # SystemVerilog naturally names these bins with the index, e.g., VALID[10]
+                            "reference": f"{bin_name}[{val}]", 
+                            "states": [str(val)]
+                        })
+                    
+                    # Return immediately since we've expanded the array
+                    return extracted_bins
+                else:
+                    expression = f"[{left}:{right}]"
+                    values.append(expression)
 
             elif valueKind == "IntegerVectorExpression":
                 size = value.get('size', {}).get('text', '')
@@ -68,21 +156,30 @@ def extract_bin(bin_node):
                 expression = "".join([size, base, literal])
                 values.append(expression)
 
-        if len(values) > 1:
-            state_str = "{" + ", ".join(values) + "}"
-        else:
-            state_str = "".join(values)
+        if not is_array_bin:
+            if len(values) > 1:
+                state_str = "{" + ", ".join(values) + "}"
+            else:
+                state_str = "".join(values)
+            
+            extracted_bins.append({
+                "reference": bin_name,
+                "states": [state_str] if state_str else [] 
+            })
 
     elif kind == "DefaultCoverageBinInitializer":
-        state_str = "default"
+        extracted_bins.append({
+            "reference": bin_name,
+            "states": ["default"]
+        })
     
-
-    bin_data = {
-                    "reference": bin_name,
-                    "states": [state_str] if state_str else [] 
-                }
-
-    return bin_data
+    elif kind == "TransListCoverageBinInitializer":
+        extracted_bins.append({
+            "reference": bin_name,
+            "states": ["NOT_SUPPORTED"]
+        })
+    
+    return extracted_bins
 
 def process_ast(ast):
     """Processes the parsed SV AST and returns a dictionary matching cov.json schema."""
@@ -130,7 +227,7 @@ def process_ast(ast):
             bin_nodes = find_nodes(cp_node, 'CoverageBins')
             for bin_node in bin_nodes:
                 bin_data = extract_bin(bin_node)
-                coverpoint["bins"].append(bin_data)
+                coverpoint["bins"].extend(bin_data)
 
             covergroup["coverpoints"].append(coverpoint)
 
@@ -142,7 +239,11 @@ def main():
     parser = argparse.ArgumentParser(description="Convert Parsed SV JSON to Coverage Schema JSON")
     parser.add_argument("input_file", help="Path to the parsed AST JSON (e.g. cov_parsed.json)")
     parser.add_argument("output_file", help="Path to the target output JSON (e.g. out_cov.json)")
+    parser.add_argument("constants", type=str, help="Path to constants.svh")
     args = parser.parse_args()
+    
+    global CONSTANTS_MAP
+    CONSTANTS_MAP = build_constants_map(args.constants)
 
     # Read the parsed AST
     with open(args.input_file, 'r') as f:

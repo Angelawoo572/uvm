@@ -270,7 +270,7 @@ def generate_coverpoint(cp_data, counter_width=16):
     mod.add_line(f"    {ref}_ctr_n = {ref}_ctr_r;")
     mod.add_line(f"    {ref}_illegal_error = 0;")
     mod.add_line("")
-    mod.add_line(f"    case ({cp_data['expression']})")
+    mod.add_line(f"    case ({cp_data['expression']}) inside")
     
     for idx, b in enumerate(bins):
         states = b['states']
@@ -327,7 +327,6 @@ def generate_covergroup(cg_data):
         
         # bubble up outputs (prefix with instance name)
         for name, width in cp_mod.outputs.items():
-            print(f"cg name: {name} width {width}")
             mod.add_output(f"{name}", width)
 
     # Process crosses
@@ -417,7 +416,6 @@ def gen_output_cg(cg, output_table):
     # create mux for each output signal
     for output, width in cg.outputs.items():
         mod.add_input(output, width)
-        print(f"output: {output} width: {width}")
         mod.add_line(f"logic[7:0] {output}_byte;")
         mod.add_line(f"logic {output}_done;")
         mod.add_line("")
