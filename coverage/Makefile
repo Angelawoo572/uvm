@@ -1,6 +1,6 @@
 all:
 	python3 parsed_to_cov.py outputs/cov_parsed.json outputs/cov_usable.json outputs/constants.svh
-	python3 gen_cov.py outputs/cov_usable.json outputs/coverage.sv
+	python3 gen_cov.py outputs/cov_usable.json outputs/coverage.sv outputs/constants.svh
 
 debug:
 	python3 -m pdb gen_cov.py outputs/cov_usable.json outputs/coverage.sv
