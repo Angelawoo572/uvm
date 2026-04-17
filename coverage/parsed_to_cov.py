@@ -1,35 +1,6 @@
 import json
 import argparse
 
-import re
-
-def load_constants(filepath):
-    constants = {}
-    # Regex explanation:
-    # localparam \s+       : matches 'localparam' followed by spaces
-    # ([A-Za-z0-9_]+)      : Group 1 - matches the constant name (e.g., MODE0_OFFSET)
-    # \s*=\s* : matches '=' surrounded by optional spaces
-    # ([^;]+)              : Group 2 - matches everything up to the ';' (the value)
-    pattern = re.compile(r'localparam\s+([A-Za-z0-9_]+)\s*=\s*([^;]+);')
-    
-    with open(filepath, 'r') as f:
-        for line in f:
-            match = pattern.search(line)
-            if match:
-                name = match.group(1)
-                value_str = match.group(2).strip()
-                
-                # Try to convert to an integer
-                try:
-                    # Handles standard base-10 integers
-                    constants[name] = int(value_str)
-                except ValueError:
-                    # If it's a complex string or Verilog hex (e.g., 32'h4), 
-                    # keep it as a string or add custom parsing here.
-                    constants[name] = value_str
-                    
-    return constants
-
 def find_nodes(node, kind):
     """Recursively search the AST for nodes of a specific 'kind'."""
     found = []
@@ -43,22 +14,77 @@ def find_nodes(node, kind):
             found.extend(find_nodes(item, kind))
     return found
 
+# Recursively reconstruct an expression like 'item.rsp.valid' from nested nodes.
 def extract_expression(expr_node):
-    """Reconstruct an expression like 'm_item.addr_i' from a ScopedName node."""
     if not expr_node:
         return ""
-    if expr_node.get('kind') == 'ScopedName':
-        # Safely extract left, separator, and right text
-        left = expr_node.get('left', {}).get('identifier', {}).get('text', '')
-        sep = expr_node.get('separator', {}).get('text', '')
-        right = expr_node.get('right', {}).get('identifier', {}).get('text', '')
-        sep = "_"
+        
+    kind = expr_node.get('kind')
+    
+    if kind == 'ScopedName':
+        # Recursively extract the left side
+        left = extract_expression(expr_node.get('left', {}))
+        sep = "_" 
+        # Recursively extract the right side
+        right = extract_expression(expr_node.get('right', {}))
+        
         return f"{left}{sep}{right}"
-    elif expr_node.get('kind') == 'IdentifierName':
+        
+    elif kind == 'IdentifierName':
         return expr_node.get('identifier', {}).get('text', '')
+        
     return ""
 
-def process_ast(ast, sv_constants): # <-- 1. Add sv_constants here
+# Takes in a bin_node
+def extract_bin(bin_node):
+    bin_name = bin_node.get('name', {}).get('text', 'unknown_bin')
+    initializer = bin_node.get('initializer', {})
+    kind = initializer.get('kind')
+    state_str = ""
+
+    if kind == "ExpressionCoverageBinInitializer":
+        state_str = initializer.get('expr', '').get('identifier', {}).get('text', '')
+
+    elif kind == "RangeCoverageBinInitializer":
+        values = []
+        valueRanges = initializer.get('ranges').get('valueRanges')
+        
+        for value in valueRanges:
+            valueKind = value.get('kind', '')
+
+            if valueKind == "IdentifierName":
+                values.append(value.get('identifier', {}).get('text', ''))
+
+            elif valueKind == "ValueRangeExpression":
+                left = value.get('left', {}).get('identifier', {}).get('text', '')
+                right = value.get('right', {}).get('identifier', {}).get('text', '')
+                expression = f"[{left}:{right}]"
+                values.append(expression)
+
+            elif valueKind == "IntegerVectorExpression":
+                size = value.get('size', {}).get('text', '')
+                base = value.get('base', {}).get('text', '')
+                literal = value.get('value', {}).get('text', '')
+                expression = "".join([size, base, literal])
+                values.append(expression)
+
+        if len(values) > 1:
+            state_str = "{" + ", ".join(values) + "}"
+        else:
+            state_str = "".join(values)
+
+    elif kind == "DefaultCoverageBinInitializer":
+        state_str = "default"
+    
+
+    bin_data = {
+                    "reference": bin_name,
+                    "states": [state_str] if state_str else [] 
+                }
+
+    return bin_data
+
+def process_ast(ast):
     """Processes the parsed SV AST and returns a dictionary matching cov.json schema."""
     output_model = {
         "reference": "",
@@ -77,7 +103,7 @@ def process_ast(ast, sv_constants): # <-- 1. Add sv_constants here
         
         covergroup = {
             "reference": cg_name,
-            "sample_event": "manual", 
+            "sample_event": "manual", # AST doesn't explicitly link the sample event if called procedurally
             "coverpoints": [],
             "crosses": []
         }
@@ -93,7 +119,7 @@ def process_ast(ast, sv_constants): # <-- 1. Add sv_constants here
                 "signals": [
                     {
                         "reference": expr_str,
-                        "width": 32  
+                        "width": 32  # AST does not contain elaboration width data, defaulting to 32
                     }
                 ],
                 "bins": [],
@@ -103,33 +129,7 @@ def process_ast(ast, sv_constants): # <-- 1. Add sv_constants here
             # 4. Find and process all Bins within this coverpoint
             bin_nodes = find_nodes(cp_node, 'CoverageBins')
             for bin_node in bin_nodes:
-                bin_name = bin_node.get('name', {}).get('text', 'unknown_bin')
-                
-                resolved_states = []
-                
-                # Find the nodes that contain the actual bin values/macros.
-                # (You might need to adjust 'IdentifierName' based on your AST)
-                value_nodes = find_nodes(bin_node, 'IdentifierName') 
-                
-                for v_node in value_nodes:
-                    val_str = v_node.get('identifier', {}).get('text', '')
-                    
-                    # Check if the string matches a constant from constants.svh
-                    if val_str in sv_constants:
-                        resolved_states.append(sv_constants[val_str])
-                    else:
-                        # Fallback: if it's just a raw number (like "4"), convert it
-                        try:
-                            resolved_states.append(int(val_str))
-                        except ValueError:
-                            # It's a string we don't recognize, just skip or append it as-is
-                            pass 
-                # =========================================================
-
-                bin_data = {
-                    "reference": bin_name,
-                    "states": resolved_states
-                }
+                bin_data = extract_bin(bin_node)
                 coverpoint["bins"].append(bin_data)
 
             covergroup["coverpoints"].append(coverpoint)
@@ -141,17 +141,15 @@ def process_ast(ast, sv_constants): # <-- 1. Add sv_constants here
 def main():
     parser = argparse.ArgumentParser(description="Convert Parsed SV JSON to Coverage Schema JSON")
     parser.add_argument("input_file", help="Path to the parsed AST JSON (e.g. cov_parsed.json)")
-    parser.add_argument("constants", help="Path to constants.svh file")   
     parser.add_argument("output_file", help="Path to the target output JSON (e.g. out_cov.json)")
-    
     args = parser.parse_args()
-    sv_constants = load_constants(args.constants)
+
     # Read the parsed AST
     with open(args.input_file, 'r') as f:
         ast_data = json.load(f)
 
     # Transform the AST to the target schema
-    coverage_model = process_ast(ast_data, sv_constants)
+    coverage_model = process_ast(ast_data)
 
     # Write out the result
     with open(args.output_file, 'w') as f:
