@@ -284,7 +284,10 @@ def generate_coverpoint(cp_data, counter_width=16):
         states_str = ", ".join(map(str, states))
         mod.add_line(f"        {states_str}: {ref}_illegal_error = 1;")
 
-    mod.add_line("        default: ; // No bin hit")
+    has_default = any("default" in b['states'] for b in bins + illegal_bins)
+    if not has_default:
+        mod.add_line("        default: ; // No bin hit")
+    
     mod.add_line("    endcase")
     mod.add_line("end")
 

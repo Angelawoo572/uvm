@@ -112,7 +112,7 @@ def extract_bin(bin_node):
         is_array_bin = True
 
     if kind == "ExpressionCoverageBinInitializer":
-        state_str = resolve_constant(initializer.get('expr', '').get('identifier', {}).get('text', ''))
+        state_str = initializer.get('expr', '').get('identifier', {}).get('text', '')
         extracted_bins.append({
             "reference": bin_name,
             "states": [state_str] if state_str else [] 
@@ -136,11 +136,11 @@ def extract_bin(bin_node):
                     end_val = resolve_constant(right)
                     
                     # Create an individual bin dict for each value in the range
-                    for val in range(start_val, end_val + 1):
+                    for val in range(0, end_val - start_val + 1):
                         extracted_bins.append({
                             # SystemVerilog naturally names these bins with the index, e.g., VALID[10]
-                            "reference": f"{bin_name}[{val}]", 
-                            "states": [str(val)]
+                            "reference": f"{bin_name}_{val}", 
+                            "states": [f"{left} + {val}"]
                         })
                     
                     # Return immediately since we've expanded the array
