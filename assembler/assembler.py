@@ -652,20 +652,20 @@ class BehavioralSynthesizer:
     def _emit_driver_rtl(self, rtl_mod, drive_lines, has_item_done):
         # Enum Definition
         enum_def = """
-typedef enum logic [2:0] {
-  S_RESET, 
-  S_REQ_ITEM, 
-  S_WAIT_RSP, 
-  S_DRIVE,
-  S_RESPOND
-} state_t;
+  typedef enum logic [2:0] {
+    S_RESET, 
+    S_REQ_ITEM, 
+    S_WAIT_RSP, 
+    S_DRIVE,
+    S_RESPOND
+  } state_t;
 
-state_t state, next_state;"""
+  state_t state, next_state;"""
         rtl_mod.wires.append(enum_def)
 
         # Combinational FSM Logic
         comb_logic = """
-always_comb begin
+  always_comb begin
   // Default assignments
   next_state = state;
   seq_if.req_valid  = 1'b0;
@@ -675,43 +675,47 @@ always_comb begin
     S_RESET: next_state = S_REQ_ITEM;
 
     S_REQ_ITEM: begin
-      seq_if.req_valid = 1'b1;
-      if (seq_if.req_ready) next_state = S_WAIT_RSP;
+    seq_if.req_valid = 1'b1;
+    if (seq_if.req_ready) next_state = S_WAIT_RSP;
     end
 
     S_WAIT_RSP: begin
-      seq_if.rsp_ready = 1'b1;
-      if (seq_if.rsp_valid) next_state = S_DRIVE;
+    seq_if.rsp_ready = 1'b1;
+    if (seq_if.rsp_valid) next_state = S_DRIVE;
     end
 
     S_DRIVE: begin
-      next_state = S_REQ_ITEM; 
+    next_state = S_REQ_ITEM; 
     end
 
     default: next_state = S_RESET;
   endcase
-end"""
+  end"""
         rtl_mod.wires.append(comb_logic)
 
         # Sequential Logic (Data Capture & Drive)
         # Note: The temp <= req logic has been completely removed
         ff_logic = [
-            "always_ff @(posedge clk or negedge rst_n_sys) begin",
-            "  if (!rst_n_sys) begin",
-            "    state <= S_RESET;",
-            "  end else begin",
-            "    state <= next_state;",
-            "    ",
-            "    if (state == S_DRIVE) begin"
+            "\n"
+            "  req_item_s temp",
+            "  always_ff @(posedge clk or negedge rst_n_sys) begin",
+            "    if (!rst_n_sys) begin",
+            "      state <= S_RESET;",
+            "    end else begin",
+            "      state <= next_state;",
+            "      if (state == S_REQ_ITEM && seq_drv.req_valid && seq_drv.req_ready) begin",
+            "        temp <= seq_drv.req;",
+            "      end",
+            "      if (state == S_DRIVE) begin"
         ]
         
         # Inject the extracted lines synthesized from JSON
         for line in drive_lines:
             ff_logic.append(f"      {line}")
             
+        ff_logic.append("      end")
         ff_logic.append("    end")
         ff_logic.append("  end")
-        ff_logic.append("end")
 
         rtl_mod.wires.append("\n".join(ff_logic))
 
@@ -796,11 +800,15 @@ end"""
             
             if stype == "assignment":
                 lhs = stmt.get("lhs", "")
-                rhs = ("seq_drv." if not is_monitor else "") + stmt.get("rhs", "")
+                rhs = stmt.get("rhs", "")
                 
                 # Strip out .drv_cb and .mon_cb
                 lhs = re.sub(r'\.(drv_cb|mon_cb)', '', lhs)
                 rhs = re.sub(r'\.(drv_cb|mon_cb)', '', rhs)
+
+                # Replace req with temp in rhs
+                if not is_monitor:
+                    rhs = re.sub(r'\breq\b', 'temp', rhs)
                 
                 # Force non-blocking assignment (<=) since this goes in an always_ff block
                 lines.append(f"{lhs} <= {rhs};")
@@ -826,7 +834,6 @@ end"""
                 # Translate the software 'write' call into a hardware 'valid' pulse
                 if is_monitor and "write" in method:
                     lines.append("mon_valid <= 1'b1;")
-                
         return lines
     
 
@@ -1248,5 +1255,5 @@ if __name__ == "__main__":
             print(" PHASE 5: Code Assembly")
             print("="*40)
             
-            assembler = CodeAssembler(registry, hierarchy_root, fsm_modules, "assembler_output_rtl.sv")
+            assembler = CodeAssembler(registry, hierarchy_root, fsm_modules, "rtl_example1.sv")
             assembler.run()

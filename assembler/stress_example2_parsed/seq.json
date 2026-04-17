@@ -1,0 +1,432 @@
+{
+  "components": [
+    {
+      "name": "req_item",
+      "base_type": "uvm_sequence_item",
+      "children": [
+        {
+          "type": "compiler_directive",
+          "directive": "include",
+          "file": "constants.svh"
+        },
+        {
+          "type": "variable_declaration",
+          "data_type": "bit [ADDR_WIDTH-1:0]",
+          "name": "addr_i",
+          "is_rand": true
+        },
+        {
+          "type": "variable_declaration",
+          "data_type": "bit",
+          "name": "we",
+          "is_rand": true
+        },
+        {
+          "type": "variable_declaration",
+          "data_type": "bit",
+          "name": "re",
+          "is_rand": true
+        },
+        {
+          "type": "variable_declaration",
+          "data_type": "bit [DATA_WIDTH-1:0]",
+          "name": "data_i",
+          "is_rand": true
+        },
+        {
+          "type": "variable_declaration",
+          "data_type": "bit",
+          "name": "rst_n",
+          "is_rand": true,
+          "initial_value": "1"
+        }
+      ]
+    },
+    {
+      "name": "rsp_item",
+      "base_type": "uvm_sequence_item",
+      "children": [
+        {
+          "type": "compiler_directive",
+          "directive": "include",
+          "file": "constants.svh"
+        },
+        {
+          "type": "variable_declaration",
+          "data_type": "logic [DATA_WIDTH-1:0]",
+          "name": "data_o"
+        },
+        {
+          "type": "variable_declaration",
+          "data_type": "logic [ARRAY_SIZE-1:0]",
+          "name": "valid"
+        }
+      ]
+    },
+    {
+      "name": "full_item",
+      "base_type": "uvm_sequence_item",
+      "children": [
+        {
+          "type": "variable_declaration",
+          "data_type": "req_item",
+          "name": "req"
+        },
+        {
+          "type": "variable_declaration",
+          "data_type": "rsp_item",
+          "name": "rsp"
+        }
+      ]
+    },
+    {
+      "name": "reset_req_item",
+      "base_type": "req_item",
+      "children": [
+        {
+          "type": "constraint",
+          "name": "force_rst",
+          "expression": "rst_n == 1'b0"
+        }
+      ]
+    },
+    {
+      "name": "config_seq",
+      "base_type": "uvm_sequence",
+      "children": [
+        {
+          "type": "variable_declaration",
+          "data_type": "req_item",
+          "name": "req"
+        },
+        {
+          "type": "task",
+          "name": "body",
+          "arguments": [],
+          "children": [
+            {
+              "type": "assignment",
+              "operator": "=",
+              "lhs": "req",
+              "rhs": "req_item::type_id::create(\"req\")"
+            },
+            {
+              "type": "method_call",
+              "caller": "this",
+              "method": "start_item",
+              "arguments": [
+                "req"
+              ]
+            },
+            {
+              "type": "if",
+              "condition": "!req.randomize() with {rst_n==1; addr_i==MODE0_OFFSET; we==1; re==0; data_i==MODE0_TYPE1;}",
+              "true_branch": [
+                {
+                  "type": "macro_call",
+                  "macro": "`uvm_error",
+                  "arguments": [
+                    "get_type_name",
+                    "\"Failed to randomize sequence item\""
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "method_call",
+              "caller": "this",
+              "method": "finish_item",
+              "arguments": [
+                "req"
+              ]
+            },
+            {
+              "type": "assignment",
+              "operator": "=",
+              "lhs": "req",
+              "rhs": "req_item::type_id::create(\"req\")"
+            },
+            {
+              "type": "method_call",
+              "caller": "this",
+              "method": "start_item",
+              "arguments": [
+                "req"
+              ]
+            },
+            {
+              "type": "if",
+              "condition": "!req.randomize() with {rst_n==1; addr_i==MODE1_OFFSET; we==1; re==0; data_i==MODE1_HIGH;}",
+              "true_branch": [
+                {
+                  "type": "macro_call",
+                  "macro": "`uvm_error",
+                  "arguments": [
+                    "get_type_name",
+                    "\"Failed to randomize sequence item\""
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "method_call",
+              "caller": "this",
+              "method": "finish_item",
+              "arguments": [
+                "req"
+              ]
+            },
+            {
+              "type": "assignment",
+              "operator": "=",
+              "lhs": "req",
+              "rhs": "req_item::type_id::create(\"req\")"
+            },
+            {
+              "type": "method_call",
+              "caller": "this",
+              "method": "start_item",
+              "arguments": [
+                "req"
+              ]
+            },
+            {
+              "type": "if",
+              "condition": "!req.randomize() with {rst_n==1; addr_i==MODE2_OFFSET; we==1; re==0; data_i==MODE2_SHORT;}",
+              "true_branch": [
+                {
+                  "type": "macro_call",
+                  "macro": "`uvm_error",
+                  "arguments": [
+                    "get_type_name",
+                    "\"Failed to randomize sequence item\""
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "method_call",
+              "caller": "this",
+              "method": "finish_item",
+              "arguments": [
+                "req"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "change_mode_seq",
+      "base_type": "uvm_sequence",
+      "base_parameters": [
+        "req_item",
+        "rsp_item"
+      ],
+      "children": [
+        {
+          "type": "compiler_directive",
+          "directive": "include",
+          "file": "constants.svh"
+        },
+        {
+          "type": "variable_declaration",
+          "data_type": "req_item",
+          "name": "req"
+        },
+        {
+          "type": "variable_declaration",
+          "data_type": "rsp_item",
+          "name": "rsp"
+        },
+        {
+          "type": "variable_declaration",
+          "data_type": "bit [DATA_WIDTH-1:0]",
+          "name": "newmode",
+          "initial_value": "99"
+        },
+        {
+          "type": "task",
+          "name": "body",
+          "arguments": [],
+          "children": [
+            {
+              "type": "assignment",
+              "operator": "=",
+              "lhs": "req",
+              "rhs": "req_item::type_id::create(\"req\")"
+            },
+            {
+              "type": "method_call",
+              "caller": "this",
+              "method": "start_item",
+              "arguments": [
+                "req"
+              ]
+            },
+            {
+              "type": "if",
+              "condition": "!req.randomize() with {rst_n==1; addr_i==MODE0_OFFSET; we==0; re==1;}",
+              "true_branch": [
+                {
+                  "type": "macro_call",
+                  "macro": "`uvm_error",
+                  "arguments": [
+                    "get_type_name",
+                    "\"Failed to randomize sequence item\""
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "method_call",
+              "caller": "this",
+              "method": "finish_item",
+              "arguments": [
+                "req"
+              ]
+            },
+            {
+              "type": "method_call",
+              "caller": "this",
+              "method": "get_response",
+              "arguments": [
+                "rsp"
+              ]
+            },
+            {
+              "type": "if",
+              "condition": "rsp.data_o == MODE0_TYPE1",
+              "true_branch": [
+                {
+                  "type": "assignment",
+                  "operator": "=",
+                  "lhs": "newmode",
+                  "rhs": "MODE0_TYPE2"
+                }
+              ]
+            },
+            {
+              "type": "if",
+              "condition": "rsp.data_o == MODE0_TYPE2",
+              "true_branch": [
+                {
+                  "type": "assignment",
+                  "operator": "=",
+                  "lhs": "newmode",
+                  "rhs": "MODE0_TYPE1"
+                }
+              ]
+            },
+            {
+              "type": "assignment",
+              "operator": "=",
+              "lhs": "req",
+              "rhs": "req_item::type_id::create(\"req\")"
+            },
+            {
+              "type": "method_call",
+              "caller": "this",
+              "method": "start_item",
+              "arguments": [
+                "req"
+              ]
+            },
+            {
+              "type": "if",
+              "condition": "!req.randomize() with {rst_n==1; addr_i==MODE0_OFFSET; we==1; re==0; data_i==newmode;}",
+              "true_branch": [
+                {
+                  "type": "macro_call",
+                  "macro": "`uvm_error",
+                  "arguments": [
+                    "get_type_name",
+                    "\"Failed to randomize sequence item\""
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "method_call",
+              "caller": "this",
+              "method": "finish_item",
+              "arguments": [
+                "req"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "reset_then_config_vseq",
+      "base_type": "uvm_sequence",
+      "children": [
+        {
+          "type": "variable_declaration",
+          "data_type": "reset_req_item",
+          "name": "rst"
+        },
+        {
+          "type": "variable_declaration",
+          "data_type": "config_seq",
+          "name": "cfg"
+        },
+        {
+          "type": "variable_declaration",
+          "data_type": "change_mode_seq",
+          "name": "change"
+        },
+        {
+          "type": "task",
+          "name": "body",
+          "arguments": [],
+          "children": [
+            {
+              "type": "macro_call",
+              "macro": "`uvm_do",
+              "arguments": [
+                "rst"
+              ]
+            },
+            {
+              "type": "macro_call",
+              "macro": "`uvm_do",
+              "arguments": [
+                "cfg"
+              ]
+            },
+            {
+              "type": "macro_call",
+              "macro": "`uvm_do",
+              "arguments": [
+                "change"
+              ]
+            },
+            {
+              "type": "macro_call",
+              "macro": "`uvm_do",
+              "arguments": [
+                "change"
+              ]
+            },
+            {
+              "type": "macro_call",
+              "macro": "`uvm_do",
+              "arguments": [
+                "change"
+              ]
+            },
+            {
+              "type": "macro_call",
+              "macro": "`uvm_do",
+              "arguments": [
+                "change"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

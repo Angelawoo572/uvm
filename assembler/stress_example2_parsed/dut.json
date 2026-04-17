@@ -1,0 +1,264 @@
+{
+  "module": {
+    "name": "dut",
+    "ports": [
+      {
+        "name": "myitf",
+        "type": "itf"
+      }
+    ],
+    "children": [
+      {
+        "type": "compiler_directive",
+        "directive": "include",
+        "file": "constants.svh"
+      },
+      {
+        "type": "variable_declaration",
+        "data_type": "logic",
+        "name": "clk"
+      },
+      {
+        "type": "variable_declaration",
+        "data_type": "logic",
+        "name": "rst_n"
+      },
+      {
+        "type": "continuous_assignment",
+        "lhs": "clk",
+        "rhs": "myitf.clk"
+      },
+      {
+        "type": "continuous_assignment",
+        "lhs": "rst_n",
+        "rhs": "myitf.rst_n"
+      },
+      {
+        "type": "variable_declaration",
+        "data_type": "logic",
+        "vector_width": "[DATA_WIDTH-1:0]",
+        "name": "mode0"
+      },
+      {
+        "type": "variable_declaration",
+        "data_type": "logic",
+        "vector_width": "[DATA_WIDTH-1:0]",
+        "name": "mode1"
+      },
+      {
+        "type": "variable_declaration",
+        "data_type": "logic",
+        "vector_width": "[DATA_WIDTH-1:0]",
+        "name": "mode2"
+      },
+      {
+        "type": "variable_declaration",
+        "data_type": "logic",
+        "vector_width": "[DATA_WIDTH-1:0]",
+        "array_dimensions": "[0:ARRAY_SIZE-1]",
+        "name": "storage"
+      },
+      {
+        "type": "always_block",
+        "block_type": "always_ff",
+        "sensitivity_list": [
+          "posedge clk",
+          "negedge rst_n"
+        ],
+        "children": [
+          {
+            "type": "if",
+            "condition": "rst_n == 1'b0",
+            "true_branch": [
+              {
+                "type": "assignment",
+                "operator": "<=",
+                "lhs": "mode0",
+                "rhs": "'0"
+              },
+              {
+                "type": "assignment",
+                "operator": "<=",
+                "lhs": "mode1",
+                "rhs": "'0"
+              },
+              {
+                "type": "assignment",
+                "operator": "<=",
+                "lhs": "mode2",
+                "rhs": "'0"
+              },
+              {
+                "type": "assignment",
+                "operator": "<=",
+                "lhs": "myitf.data_o",
+                "rhs": "'0"
+              },
+              {
+                "type": "assignment",
+                "operator": "<=",
+                "lhs": "myitf.valid",
+                "rhs": "'0"
+              }
+            ],
+            "false_branch": [
+              {
+                "type": "if",
+                "condition": "myitf.re",
+                "true_branch": [
+                  {
+                    "type": "case",
+                    "qualifier": "unique",
+                    "modifier": "inside",
+                    "expression": "myitf.addr_i",
+                    "items": [
+                      {
+                        "label": "MODE0_OFFSET",
+                        "statement": {
+                          "type": "assignment",
+                          "operator": "<=",
+                          "lhs": "myitf.data_o",
+                          "rhs": "mode0"
+                        }
+                      },
+                      {
+                        "label": "MODE1_OFFSET",
+                        "statement": {
+                          "type": "assignment",
+                          "operator": "<=",
+                          "lhs": "myitf.data_o",
+                          "rhs": "mode1"
+                        }
+                      },
+                      {
+                        "label": "MODE2_OFFSET",
+                        "statement": {
+                          "type": "assignment",
+                          "operator": "<=",
+                          "lhs": "myitf.data_o",
+                          "rhs": "mode2"
+                        }
+                      },
+                      {
+                        "label": "[ARRAY_OFFSET:ARRAY_OFFSET_CEILING]",
+                        "statement": {
+                          "type": "block",
+                          "children": [
+                            {
+                              "type": "variable_declaration",
+                              "data_type": "logic",
+                              "vector_width": "[$clog2(ARRAY_SIZE):0]",
+                              "name": "address_for_storage"
+                            },
+                            {
+                              "type": "assignment",
+                              "operator": "=",
+                              "lhs": "address_for_storage",
+                              "rhs": "myitf.addr_i - ARRAY_OFFSET"
+                            },
+                            {
+                              "type": "assignment",
+                              "operator": "<=",
+                              "lhs": "myitf.data_o",
+                              "rhs": "storage[address_for_storage]"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "label": "default",
+                        "statement": {
+                          "type": "assignment",
+                          "operator": "<=",
+                          "lhs": "myitf.data_o",
+                          "rhs": "'0"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "if",
+                "condition": "myitf.we",
+                "true_branch": [
+                  {
+                    "type": "case",
+                    "qualifier": "unique",
+                    "modifier": "inside",
+                    "expression": "myitf.addr_i",
+                    "items": [
+                      {
+                        "label": "MODE0_OFFSET",
+                        "statement": {
+                          "type": "assignment",
+                          "operator": "<=",
+                          "lhs": "mode0",
+                          "rhs": "myitf.data_i"
+                        }
+                      },
+                      {
+                        "label": "MODE1_OFFSET",
+                        "statement": {
+                          "type": "assignment",
+                          "operator": "<=",
+                          "lhs": "mode1",
+                          "rhs": "myitf.data_i"
+                        }
+                      },
+                      {
+                        "label": "MODE2_OFFSET",
+                        "statement": {
+                          "type": "assignment",
+                          "operator": "<=",
+                          "lhs": "mode2",
+                          "rhs": "myitf.data_i"
+                        }
+                      },
+                      {
+                        "label": "[ARRAY_OFFSET:ARRAY_OFFSET_CEILING]",
+                        "statement": {
+                          "type": "block",
+                          "children": [
+                            {
+                              "type": "variable_declaration",
+                              "data_type": "logic",
+                              "vector_width": "[$clog2(ARRAY_SIZE):0]",
+                              "name": "address_for_storage"
+                            },
+                            {
+                              "type": "assignment",
+                              "operator": "=",
+                              "lhs": "address_for_storage",
+                              "rhs": "myitf.addr_i - ARRAY_OFFSET"
+                            },
+                            {
+                              "type": "assignment",
+                              "operator": "<=",
+                              "lhs": "storage[address_for_storage]",
+                              "rhs": "myitf.data_i"
+                            },
+                            {
+                              "type": "assignment",
+                              "operator": "<=",
+                              "lhs": "myitf.valid[address_for_storage]",
+                              "rhs": "1'b1"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "label": "default",
+                        "statement": null
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

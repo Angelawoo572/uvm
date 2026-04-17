@@ -1,0 +1,86 @@
+{
+  "local_parameters": [
+    {
+      "type": "localparam",
+      "name": "ADDR_WIDTH",
+      "value": "16"
+    },
+    {
+      "type": "localparam",
+      "name": "DATA_WIDTH",
+      "value": "32"
+    },
+    {
+      "type": "localparam",
+      "name": "ARRAY_SIZE",
+      "value": "8"
+    },
+    {
+      "type": "localparam",
+      "name": "MODE0_OFFSET",
+      "value": "4"
+    },
+    {
+      "type": "localparam",
+      "name": "MODE1_OFFSET",
+      "value": "8"
+    },
+    {
+      "type": "localparam",
+      "name": "MODE2_OFFSET",
+      "value": "12"
+    },
+    {
+      "type": "localparam",
+      "name": "ARRAY_OFFSET",
+      "value": "16"
+    },
+    {
+      "type": "localparam",
+      "name": "ARRAY_OFFSET_CEILING",
+      "value": "ARRAY_OFFSET + ARRAY_SIZE - 1"
+    },
+    {
+      "type": "localparam",
+      "data_type": "logic [DATA_WIDTH-1:0]",
+      "name": "MODE0_TYPE1",
+      "value": "55"
+    },
+    {
+      "type": "localparam",
+      "data_type": "logic [DATA_WIDTH-1:0]",
+      "name": "MODE0_TYPE2",
+      "value": "111"
+    },
+    {
+      "type": "localparam",
+      "data_type": "logic [DATA_WIDTH-1:0]",
+      "name": "MODE1_HIGH",
+      "value": "'1"
+    },
+    {
+      "type": "localparam",
+      "data_type": "logic [DATA_WIDTH-1:0]",
+      "name": "MODE1_LOW",
+      "value": "'0"
+    },
+    {
+      "type": "localparam",
+      "data_type": "logic [DATA_WIDTH-1:0]",
+      "name": "MODE2_SHORT",
+      "value": "'hA"
+    },
+    {
+      "type": "localparam",
+      "data_type": "logic [DATA_WIDTH-1:0]",
+      "name": "MODE2_LONG",
+      "value": "'hF"
+    },
+    {
+      "type": "localparam",
+      "data_type": "logic [DATA_WIDTH-1:0]",
+      "name": "MODE2_AVERAGE",
+      "value": "'hC"
+    }
+  ]
+}

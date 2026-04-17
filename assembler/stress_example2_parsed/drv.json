@@ -1,0 +1,228 @@
+{
+  "component": {
+    "name": "drv",
+    "base_type": "uvm_driver",
+    "base_parameters": [
+      "req_item",
+      "rsp_item"
+    ],
+    "class_parameters": [
+      {
+        "name": "DATA_WIDTH",
+        "default": "32",
+        "type": "int"
+      },
+      {
+        "name": "ADDR_WIDTH",
+        "default": "16",
+        "type": "int"
+      },
+      {
+        "name": "ARRAY_SIZE",
+        "default": "8",
+        "type": "int"
+      }
+    ],
+    "children": [
+      {
+        "type": "virtual_interface",
+        "name": "vif",
+        "interface_type": "itf",
+        "parameters": [
+          {
+            "name": "DATA_WIDTH",
+            "value": "DATA_WIDTH"
+          },
+          {
+            "name": "ADDR_WIDTH",
+            "value": "ADDR_WIDTH"
+          },
+          {
+            "name": "ARRAY_SIZE",
+            "value": "ARRAY_SIZE"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "build_phase",
+        "arguments": [
+          {
+            "name": "phase",
+            "type": "uvm_phase"
+          }
+        ],
+        "children": [
+          {
+            "type": "super_call",
+            "method": "build_phase",
+            "arguments": [
+              "phase"
+            ]
+          },
+          {
+            "type": "if",
+            "condition": "!uvm_config_db #(virtual itf #(.DATA_WIDTH(DATA_WIDTH), .ADDR_WIDTH(ADDR_WIDTH), .ARRAY_SIZE(ARRAY_SIZE)))::get(null, \"tb\", \"vif\", vif)",
+            "true_branch": [
+              {
+                "type": "macro_call",
+                "macro": "`uvm_fatal",
+                "arguments": [
+                  "get_type_name()",
+                  "$sformatf(\"Virtual interface not found\")"
+                ]
+              }
+            ]
+          },
+          {
+            "type": "macro_call",
+            "macro": "`uvm_info",
+            "arguments": [
+              "get_type_name()",
+              "$sformatf(\"end of build phase\")",
+              "UVM_NONE"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "task",
+        "name": "run_phase",
+        "arguments": [
+          {
+            "name": "phase",
+            "type": "uvm_phase"
+          }
+        ],
+        "children": [
+          {
+            "type": "variable_declaration",
+            "data_type": "req_item",
+            "name": "req"
+          },
+          {
+            "type": "variable_declaration",
+            "data_type": "rsp_item",
+            "name": "rsp"
+          },
+          {
+            "type": "event_control",
+            "event": "vif.drv_cb"
+          },
+          {
+            "type": "loop",
+            "loop_type": "forever",
+            "children": [
+              {
+                "type": "method_call",
+                "caller": "seq_item_port",
+                "method": "get_next_item",
+                "arguments": [
+                  "req"
+                ]
+              },
+              {
+                "type": "macro_call",
+                "macro": "`uvm_info",
+                "arguments": [
+                  "get_type_name()",
+                  "$sformatf(\"driver acquired request...\")",
+                  "UVM_NONE"
+                ]
+              },
+              {
+                "type": "assignment",
+                "operator": "<=",
+                "lhs": "vif.drv_cb.addr_i",
+                "rhs": "req.addr_i"
+              },
+              {
+                "type": "assignment",
+                "operator": "<=",
+                "lhs": "vif.drv_cb.data_i",
+                "rhs": "req.data_i"
+              },
+              {
+                "type": "assignment",
+                "operator": "<=",
+                "lhs": "vif.drv_cb.re",
+                "rhs": "req.re"
+              },
+              {
+                "type": "assignment",
+                "operator": "<=",
+                "lhs": "vif.drv_cb.we",
+                "rhs": "req.we"
+              },
+              {
+                "type": "assignment",
+                "operator": "<=",
+                "lhs": "vif.drv_cb.rst_n",
+                "rhs": "req.rst_n"
+              },
+              {
+                "type": "event_control",
+                "event": "vif.drv_cb"
+              },
+              {
+                "type": "assignment",
+                "operator": "=",
+                "lhs": "rsp",
+                "rhs": "rsp_item::type_id::create(\"rsp_item\")"
+              },
+              {
+                "type": "assignment",
+                "operator": "=",
+                "lhs": "rsp.data_o",
+                "rhs": "vif.drv_cb.data_o"
+              },
+              {
+                "type": "assignment",
+                "operator": "=",
+                "lhs": "rsp.valid",
+                "rhs": "vif.drv_cb.valid"
+              },
+              {
+                "type": "method_call",
+                "caller": "rsp",
+                "method": "set_id_info",
+                "arguments": [
+                  "req"
+                ]
+              },
+              {
+                "type": "method_call",
+                "caller": "seq_item_port",
+                "method": "item_done",
+                "arguments": [
+                  "rsp"
+                ]
+              },
+              {
+                "type": "macro_call",
+                "macro": "`uvm_info",
+                "arguments": [
+                  "get_type_name()",
+                  "$sformatf(\"... driver returned response\")",
+                  "UVM_NONE"
+                ]
+              },
+              {
+                "type": "method_call",
+                "caller": "req",
+                "method": "print",
+                "arguments": []
+              },
+              {
+                "type": "method_call",
+                "caller": "rsp",
+                "method": "print",
+                "arguments": []
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

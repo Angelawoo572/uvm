@@ -1,0 +1,152 @@
+{
+  "component": {
+    "name": "mon",
+    "base_type": "uvm_monitor",
+    "class_parameters": [
+      {
+        "name": "DATA_WIDTH",
+        "default": "32",
+        "type": "int"
+      },
+      {
+        "name": "ADDR_WIDTH",
+        "default": "16",
+        "type": "int"
+      },
+      {
+        "name": "ARRAY_SIZE",
+        "default": "8",
+        "type": "int"
+      }
+    ],
+    "children": [
+      {
+        "type": "virtual_interface",
+        "name": "vif",
+        "interface_type": "itf",
+        "parameters": [
+          {
+            "name": "DATA_WIDTH",
+            "value": "DATA_WIDTH"
+          },
+          {
+            "name": "ADDR_WIDTH",
+            "value": "ADDR_WIDTH"
+          },
+          {
+            "name": "ARRAY_SIZE",
+            "value": "ARRAY_SIZE"
+          }
+        ]
+      },
+      {
+        "type": "variable_declaration",
+        "data_type": "uvm_analysis_port",
+        "parameters": [
+          {
+            "name": "type",
+            "value": "full_item"
+          }
+        ],
+        "name": "m_cov_port"
+      },
+      {
+        "type": "function",
+        "name": "build_phase",
+        "arguments": [
+          {
+            "name": "phase",
+            "type": "uvm_phase"
+          }
+        ],
+        "children": [
+          {
+            "type": "super_call",
+            "method": "build_phase",
+            "arguments": [
+              "phase"
+            ]
+          },
+          {
+            "type": "if",
+            "condition": "!uvm_config_db #(virtual itf #(.DATA_WIDTH(DATA_WIDTH), .ADDR_WIDTH(ADDR_WIDTH), .ARRAY_SIZE(ARRAY_SIZE)))::get(null, \"tb\", \"vif\", vif)",
+            "true_branch": [
+              {
+                "type": "macro_call",
+                "macro": "`uvm_fatal",
+                "arguments": [
+                  "get_type_name()",
+                  "$sformatf(\"Virtual interface not found usign name\")"
+                ]
+              }
+            ]
+          },
+          {
+            "type": "macro_call",
+            "macro": "`uvm_info",
+            "arguments": [
+              "get_type_name()",
+              "$sformatf(\"end of build phase\")",
+              "UVM_NONE"
+            ]
+          },
+          {
+            "type": "assignment",
+            "operator": "=",
+            "lhs": "m_cov_port",
+            "rhs": "new(\"m_cov_port\", this)"
+          }
+        ]
+      },
+      {
+        "type": "task",
+        "name": "run_phase",
+        "arguments": [
+          {
+            "name": "phase",
+            "type": "uvm_phase"
+          }
+        ],
+        "children": [
+          {
+            "type": "super_call",
+            "method": "run_phase",
+            "arguments": [
+              "phase"
+            ]
+          },
+          {
+            "type": "loop",
+            "loop_type": "forever",
+            "children": [
+              {
+                "type": "event_control",
+                "event": "vif.mon_cb"
+              },
+              {
+                "type": "if",
+                "condition": "vif.mon_cb.rst_n",
+                "true_branch": [
+                  {
+                    "type": "variable_declaration",
+                    "data_type": "full_item",
+                    "name": "item",
+                    "initial_value": "full_item::type_id::create(\"item\")"
+                  },
+                  {
+                    "type": "method_call",
+                    "caller": "m_cov_port",
+                    "method": "write",
+                    "arguments": [
+                      "item"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

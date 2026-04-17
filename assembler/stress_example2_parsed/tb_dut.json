@@ -1,0 +1,117 @@
+{
+  "component": {
+    "name": "tb",
+    "base_type": "module",
+    "children": [
+      {
+        "type": "import_declaration",
+        "package": "uvm_pkg::*"
+      },
+      {
+        "type": "import_declaration",
+        "package": "stress_pkg::*"
+      },
+      {
+        "type": "compiler_directive",
+        "directive": "include",
+        "file": "constants.svh"
+      },
+      {
+        "type": "variable_declaration",
+        "data_type": "bit",
+        "name": "clk"
+      },
+      {
+        "type": "initial_block",
+        "children": [
+          {
+            "type": "assignment",
+            "operator": "=",
+            "lhs": "clk",
+            "rhs": "0"
+          }
+        ]
+      },
+      {
+        "type": "module_instantiation",
+        "module_type": "itf",
+        "parameters": [
+          {
+            "name": "DATA_WIDTH",
+            "value": "DATA_WIDTH"
+          },
+          {
+            "name": "ADDR_WIDTH",
+            "value": "ADDR_WIDTH"
+          },
+          {
+            "name": "ARRAY_SIZE",
+            "value": "ARRAY_SIZE"
+          }
+        ],
+        "name": "myitf",
+        "ports": [
+          {
+            "name": "clk",
+            "connection": "clk"
+          }
+        ]
+      },
+      {
+        "type": "module_instantiation",
+        "module_type": "dut",
+        "name": "mydut",
+        "ports": [
+          {
+            "name": "myitf",
+            "connection": "myitf"
+          }
+        ]
+      },
+      {
+        "type": "always_block",
+        "children": [
+          {
+            "type": "delay",
+            "value": "#10"
+          },
+          {
+            "type": "assignment",
+            "operator": "=",
+            "lhs": "clk",
+            "rhs": "!clk"
+          }
+        ]
+      },
+      {
+        "type": "initial_block",
+        "children": [
+          {
+            "type": "assignment",
+            "operator": "=",
+            "lhs": "clk",
+            "rhs": "0"
+          },
+          {
+            "type": "method_call",
+            "caller": "uvm_config_db#(virtual itf #(.DATA_WIDTH(DATA_WIDTH), .ADDR_WIDTH(ADDR_WIDTH), .ARRAY_SIZE(ARRAY_SIZE)))",
+            "method": "set",
+            "arguments": [
+              "null",
+              "\"tb\"",
+              "\"vif\"",
+              "myitf"
+            ]
+          },
+          {
+            "type": "function_call",
+            "function": "run_test",
+            "arguments": [
+              "\"example2\""
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -12,6 +12,11 @@
         "name": "ADDR_WIDTH",
         "default": "16",
         "type": "int"
+      },
+      {
+        "name": "ARRAY_SIZE",
+        "default": "8",
+        "type": "int"
       }
     ],
     "children": [
@@ -26,6 +31,10 @@
           {
             "name": "ADDR_WIDTH",
             "value": "ADDR_WIDTH"
+          },
+          {
+            "name": "ARRAY_SIZE",
+            "value": "ARRAY_SIZE"
           }
         ],
         "name": "m_drv"
@@ -41,6 +50,10 @@
           {
             "name": "ADDR_WIDTH",
             "value": "ADDR_WIDTH"
+          },
+          {
+            "name": "ARRAY_SIZE",
+            "value": "ARRAY_SIZE"
           }
         ],
         "name": "m_mon"
@@ -50,8 +63,12 @@
         "data_type": "uvm_sequencer",
         "parameters": [
           {
-            "name": "type",
+            "name": "req_type",
             "value": "req_item"
+          },
+          {
+            "name": "rsp_type",
+            "value": "rsp_item"
           }
         ],
         "name": "m_sqr"
@@ -82,19 +99,19 @@
             "type": "assignment",
             "operator": "=",
             "lhs": "m_drv",
-            "rhs": "drv #(DATA_WIDTH, ADDR_WIDTH)::type_id::create(\"m_drv\", this)"
+            "rhs": "drv #(DATA_WIDTH, ADDR_WIDTH, ARRAY_SIZE)::type_id::create(\"m_drv\", this)"
           },
           {
             "type": "assignment",
             "operator": "=",
             "lhs": "m_mon",
-            "rhs": "mon #(DATA_WIDTH, ADDR_WIDTH)::type_id::create(\"m_mon\", this)"
+            "rhs": "mon #(DATA_WIDTH, ADDR_WIDTH, ARRAY_SIZE)::type_id::create(\"m_mon\", this)"
           },
           {
             "type": "assignment",
             "operator": "=",
             "lhs": "m_sqr",
-            "rhs": "uvm_sequencer #(req_item)::type_id::create(\"m_sqr\", this)"
+            "rhs": "uvm_sequencer #(req_item, rsp_item)::type_id::create(\"m_sqr\", this)"
           },
           {
             "type": "assignment",

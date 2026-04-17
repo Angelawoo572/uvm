@@ -1,0 +1,105 @@
+{
+  "component": {
+    "name": "cov",
+    "base_type": "uvm_subscriber",
+    "base_parameters": [
+      "full_item"
+    ],
+    "children": [
+      {
+        "type": "compiler_directive",
+        "directive": "include",
+        "file": "constants.svh"
+      },
+      {
+        "type": "variable_declaration",
+        "data_type": "full_item",
+        "name": "item"
+      },
+      {
+        "type": "covergroup",
+        "name": "opcodes_cg",
+        "children": [
+          {
+            "type": "assignment",
+            "operator": "=",
+            "lhs": "option.per_instance",
+            "rhs": "1"
+          },
+          {
+            "type": "coverpoint",
+            "target": "item.req.addr_i",
+            "bins": [
+              {
+                "name": "MODE0",
+                "value": "MODE0_OFFSET"
+              },
+              {
+                "name": "MODE1",
+                "value": "MODE1_OFFSET"
+              },
+              {
+                "name": "MODE2",
+                "value": "MODE2_OFFSET"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "new",
+        "arguments": [
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "parent",
+            "type": "uvm_component"
+          }
+        ],
+        "children": [
+          {
+            "type": "super_call",
+            "method": "new",
+            "arguments": [
+              "name",
+              "parent"
+            ]
+          },
+          {
+            "type": "assignment",
+            "operator": "=",
+            "lhs": "opcodes_cg",
+            "rhs": "new()"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "write",
+        "arguments": [
+          {
+            "name": "t",
+            "type": "full_item"
+          }
+        ],
+        "children": [
+          {
+            "type": "assignment",
+            "operator": "=",
+            "lhs": "this.item",
+            "rhs": "t"
+          },
+          {
+            "type": "method_call",
+            "caller": "opcodes_cg",
+            "method": "sample",
+            "arguments": []
+          }
+        ]
+      }
+    ]
+  }
+}

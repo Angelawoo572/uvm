@@ -151,17 +151,17 @@ module drv_rtl #(
   input  logic      rst_n_sys
 );
   
-typedef enum logic [2:0] {
-  S_RESET, 
-  S_REQ_ITEM, 
-  S_WAIT_RSP, 
-  S_DRIVE,
-  S_RESPOND
-} state_t;
+  typedef enum logic [2:0] {
+    S_RESET, 
+    S_REQ_ITEM, 
+    S_WAIT_RSP, 
+    S_DRIVE,
+    S_RESPOND
+  } state_t;
 
-state_t state, next_state;
+  state_t state, next_state;
   
-always_comb begin
+  always_comb begin
   // Default assignments
   next_state = state;
   seq_if.req_valid  = 1'b0;
@@ -171,37 +171,41 @@ always_comb begin
     S_RESET: next_state = S_REQ_ITEM;
 
     S_REQ_ITEM: begin
-      seq_if.req_valid = 1'b1;
-      if (seq_if.req_ready) next_state = S_WAIT_RSP;
+    seq_if.req_valid = 1'b1;
+    if (seq_if.req_ready) next_state = S_WAIT_RSP;
     end
 
     S_WAIT_RSP: begin
-      seq_if.rsp_ready = 1'b1;
-      if (seq_if.rsp_valid) next_state = S_DRIVE;
+    seq_if.rsp_ready = 1'b1;
+    if (seq_if.rsp_valid) next_state = S_DRIVE;
     end
 
     S_DRIVE: begin
-      next_state = S_REQ_ITEM; 
+    next_state = S_REQ_ITEM; 
     end
 
     default: next_state = S_RESET;
   endcase
-end
+  end
+  
+  req_item_s temp
   always_ff @(posedge clk or negedge rst_n_sys) begin
-  if (!rst_n_sys) begin
-    state <= S_RESET;
-  end else begin
-    state <= next_state;
-    
-    if (state == S_DRIVE) begin
-      vif.addr_i <= seq_drv.req.addr_i;
-      vif.data_i <= seq_drv.req.data_i;
-      vif.re <= seq_drv.req.re;
-      vif.we <= seq_drv.req.we;
-      vif.rst_n <= seq_drv.req.rst_n;
+    if (!rst_n_sys) begin
+      state <= S_RESET;
+    end else begin
+      state <= next_state;
+      if (state == S_REQ_ITEM && seq_drv.req_valid && seq_drv.req_ready) begin
+        temp <= seq_drv.req;
+      end
+      if (state == S_DRIVE) begin
+      vif.addr_i <= temp.addr_i;
+      vif.data_i <= temp.data_i;
+      vif.re <= temp.re;
+      vif.we <= temp.we;
+      vif.rst_n <= temp.rst_n;
+      end
     end
   end
-end
 
 endmodule
 
