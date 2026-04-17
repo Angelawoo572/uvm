@@ -5,7 +5,7 @@ interface seq_drv_if (
     input logic rst_n
 );
     // Data from seq_fsm to drv
-    data_to_driver_t data_to_driver;
+    req_item_s data_to_driver;
 
     // Handshake
     logic req_valid;

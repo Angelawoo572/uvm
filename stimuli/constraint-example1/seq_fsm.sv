@@ -23,7 +23,7 @@ module seq_fsm (
     state_t state;
     localparam state_t SEED_LOAD = LOAD_SEED;
 
-    data_to_driver_t data_to_driver [`NUM_SEQUENCES];
+    req_item_s data_to_driver [`NUM_SEQUENCES];
     req_data_t [3:0] req_data [`NUM_SEQUENCES];
 
     // Sequences
