@@ -1,0 +1,2488 @@
+{
+  "kind": "SyntaxTree",
+  "root": {
+    "kind": "CompilationUnit",
+    "members": [
+      {
+        "kind": "ClassDeclaration",
+        "classKeyword": {
+          "kind": "ClassKeyword",
+          "text": "class",
+          "trivia": [
+            {
+              "kind": "LineComment",
+              "text": "//"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//------------------------------------------------------------------------------"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//   Copyright 2018 Mentor Graphics Corporation"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//   All Rights Reserved Worldwide"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//   Licensed under the Apache License, Version 2.0 (the"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//   \"License\"); you may not use this file except in"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//   compliance with the License.  You may obtain a copy of"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//   the License at"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//       http://www.apache.org/licenses/LICENSE-2.0"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//   Unless required by applicable law or agreed to in"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//   writing, software distributed under the License is"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//   distributed on an \"AS IS\" BASIS, WITHOUT WARRANTIES OR"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//   CONDITIONS OF ANY KIND, either express or implied.  See"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//   the License for the specific language governing"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//   permissions and limitations under the License."
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//------------------------------------------------------------------------------"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//------------------------------------------------------------------------------"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//   Copyright 2018 Mentor Graphics Corporation"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//   All Rights Reserved Worldwide"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//   Licensed under the Apache License, Version 2.0 (the"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//   \"License\"); you may not use this file except in"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//   compliance with the License.  You may obtain a copy of"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//   the License at"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//       http://www.apache.org/licenses/LICENSE-2.0"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//   Unless required by applicable law or agreed to in"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//   writing, software distributed under the License is"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//   distributed on an \"AS IS\" BASIS, WITHOUT WARRANTIES OR"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//   CONDITIONS OF ANY KIND, either express or implied.  See"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//   the License for the specific language governing"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//   permissions and limitations under the License."
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "LineComment",
+              "text": "//------------------------------------------------------------------------------"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            }
+          ]
+        },
+        "name": {
+          "kind": "Identifier",
+          "text": "sfr_driver",
+          "trivia": [
+            {
+              "kind": "Whitespace",
+              "text": " "
+            }
+          ]
+        },
+        "extendsClause": {
+          "kind": "ExtendsClause",
+          "keyword": {
+            "kind": "ExtendsKeyword",
+            "text": "extends",
+            "trivia": [
+              {
+                "kind": "Whitespace",
+                "text": " "
+              }
+            ]
+          },
+          "baseName": {
+            "kind": "ClassName",
+            "identifier": {
+              "kind": "Identifier",
+              "text": "uvm_driver",
+              "trivia": [
+                {
+                  "kind": "Whitespace",
+                  "text": " "
+                }
+              ]
+            },
+            "parameters": {
+              "kind": "ParameterValueAssignment",
+              "hash": {
+                "kind": "Hash",
+                "text": "#",
+                "trivia": [
+                  {
+                    "kind": "Whitespace",
+                    "text": " "
+                  }
+                ]
+              },
+              "openParen": {
+                "kind": "OpenParenthesis",
+                "text": "("
+              },
+              "parameters": [
+                {
+                  "kind": "OrderedParamAssignment",
+                  "expr": {
+                    "kind": "IdentifierName",
+                    "identifier": {
+                      "kind": "Identifier",
+                      "text": "sfr_seq_item"
+                    }
+                  }
+                }
+              ],
+              "closeParen": {
+                "kind": "CloseParenthesis",
+                "text": ")"
+              }
+            }
+          }
+        },
+        "semi": {
+          "kind": "Semicolon",
+          "text": ";"
+        },
+        "items": [
+          {
+            "kind": "ClassMethodDeclaration",
+            "declaration": {
+              "kind": "FunctionDeclaration",
+              "prototype": {
+                "kind": "FunctionPrototype",
+                "keyword": {
+                  "kind": "FunctionKeyword",
+                  "text": "function",
+                  "trivia": [
+                    {
+                      "kind": "Directive",
+                      "syntax": {
+                        "kind": "MacroUsage",
+                        "directive": {
+                          "kind": "Directive",
+                          "text": "`uvm_component_utils",
+                          "trivia": [
+                            {
+                              "kind": "EndOfLine",
+                              "text": "\n"
+                            },
+                            {
+                              "kind": "EndOfLine",
+                              "text": "\n"
+                            }
+                          ]
+                        },
+                        "args": {
+                          "kind": "MacroActualArgumentList",
+                          "openParen": {
+                            "kind": "OpenParenthesis",
+                            "text": "("
+                          },
+                          "args": [
+                            {
+                              "kind": "MacroActualArgument",
+                              "tokens": [
+                                {
+                                  "kind": "Identifier",
+                                  "text": "sfr_driver"
+                                }
+                              ]
+                            }
+                          ],
+                          "closeParen": {
+                            "kind": "CloseParenthesis",
+                            "text": ")"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "kind": "EndOfLine",
+                      "text": "\n"
+                    },
+                    {
+                      "kind": "EndOfLine",
+                      "text": "\n"
+                    }
+                  ]
+                },
+                "returnType": {
+                  "kind": "ImplicitType"
+                },
+                "name": {
+                  "kind": "ConstructorName",
+                  "keyword": {
+                    "kind": "NewKeyword",
+                    "text": "new",
+                    "trivia": [
+                      {
+                        "kind": "Whitespace",
+                        "text": " "
+                      }
+                    ]
+                  }
+                },
+                "portList": {
+                  "kind": "FunctionPortList",
+                  "openParen": {
+                    "kind": "OpenParenthesis",
+                    "text": "("
+                  },
+                  "ports": [
+                    {
+                      "kind": "FunctionPort",
+                      "dataType": {
+                        "kind": "StringType",
+                        "keyword": {
+                          "kind": "StringKeyword",
+                          "text": "string"
+                        }
+                      },
+                      "declarator": {
+                        "kind": "Declarator",
+                        "name": {
+                          "kind": "Identifier",
+                          "text": "name",
+                          "trivia": [
+                            {
+                              "kind": "Whitespace",
+                              "text": " "
+                            }
+                          ]
+                        },
+                        "initializer": {
+                          "kind": "EqualsValueClause",
+                          "equals": {
+                            "kind": "Equals",
+                            "text": "=",
+                            "trivia": [
+                              {
+                                "kind": "Whitespace",
+                                "text": " "
+                              }
+                            ]
+                          },
+                          "expr": {
+                            "kind": "StringLiteralExpression",
+                            "literal": {
+                              "kind": "StringLiteral",
+                              "text": "\"sfr_driver\"",
+                              "trivia": [
+                                {
+                                  "kind": "Whitespace",
+                                  "text": " "
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "kind": "Comma",
+                      "text": ","
+                    },
+                    {
+                      "kind": "FunctionPort",
+                      "dataType": {
+                        "kind": "NamedType",
+                        "name": {
+                          "kind": "IdentifierName",
+                          "identifier": {
+                            "kind": "Identifier",
+                            "text": "uvm_component",
+                            "trivia": [
+                              {
+                                "kind": "Whitespace",
+                                "text": " "
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "declarator": {
+                        "kind": "Declarator",
+                        "name": {
+                          "kind": "Identifier",
+                          "text": "parent",
+                          "trivia": [
+                            {
+                              "kind": "Whitespace",
+                              "text": " "
+                            }
+                          ]
+                        },
+                        "initializer": {
+                          "kind": "EqualsValueClause",
+                          "equals": {
+                            "kind": "Equals",
+                            "text": "=",
+                            "trivia": [
+                              {
+                                "kind": "Whitespace",
+                                "text": " "
+                              }
+                            ]
+                          },
+                          "expr": {
+                            "kind": "NullLiteralExpression",
+                            "literal": {
+                              "kind": "NullKeyword",
+                              "text": "null",
+                              "trivia": [
+                                {
+                                  "kind": "Whitespace",
+                                  "text": " "
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ],
+                  "closeParen": {
+                    "kind": "CloseParenthesis",
+                    "text": ")"
+                  }
+                }
+              },
+              "semi": {
+                "kind": "Semicolon",
+                "text": ";"
+              },
+              "items": [
+                {
+                  "kind": "ExpressionStatement",
+                  "expr": {
+                    "kind": "NewClassExpression",
+                    "scopedNew": {
+                      "kind": "ScopedName",
+                      "left": {
+                        "kind": "SuperHandle",
+                        "keyword": {
+                          "kind": "SuperKeyword",
+                          "text": "super",
+                          "trivia": [
+                            {
+                              "kind": "EndOfLine",
+                              "text": "\n"
+                            },
+                            {
+                              "kind": "Whitespace",
+                              "text": "  "
+                            }
+                          ]
+                        }
+                      },
+                      "separator": {
+                        "kind": "Dot",
+                        "text": "."
+                      },
+                      "right": {
+                        "kind": "ConstructorName",
+                        "keyword": {
+                          "kind": "NewKeyword",
+                          "text": "new"
+                        }
+                      }
+                    },
+                    "argList": {
+                      "kind": "ArgumentList",
+                      "openParen": {
+                        "kind": "OpenParenthesis",
+                        "text": "("
+                      },
+                      "parameters": [
+                        {
+                          "kind": "OrderedArgument",
+                          "expr": {
+                            "kind": "SimplePropertyExpr",
+                            "expr": {
+                              "kind": "SimpleSequenceExpr",
+                              "expr": {
+                                "kind": "IdentifierName",
+                                "identifier": {
+                                  "kind": "Identifier",
+                                  "text": "name"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Comma",
+                          "text": ","
+                        },
+                        {
+                          "kind": "OrderedArgument",
+                          "expr": {
+                            "kind": "SimplePropertyExpr",
+                            "expr": {
+                              "kind": "SimpleSequenceExpr",
+                              "expr": {
+                                "kind": "IdentifierName",
+                                "identifier": {
+                                  "kind": "Identifier",
+                                  "text": "parent",
+                                  "trivia": [
+                                    {
+                                      "kind": "Whitespace",
+                                      "text": " "
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "closeParen": {
+                        "kind": "CloseParenthesis",
+                        "text": ")"
+                      }
+                    }
+                  },
+                  "semi": {
+                    "kind": "Semicolon",
+                    "text": ";"
+                  }
+                }
+              ],
+              "end": {
+                "kind": "EndFunctionKeyword",
+                "text": "endfunction",
+                "trivia": [
+                  {
+                    "kind": "EndOfLine",
+                    "text": "\n"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "kind": "ClassPropertyDeclaration",
+            "declaration": {
+              "kind": "DataDeclaration",
+              "type": {
+                "kind": "VirtualInterfaceType",
+                "virtualKeyword": {
+                  "kind": "VirtualKeyword",
+                  "text": "virtual",
+                  "trivia": [
+                    {
+                      "kind": "EndOfLine",
+                      "text": "\n"
+                    },
+                    {
+                      "kind": "EndOfLine",
+                      "text": "\n"
+                    }
+                  ]
+                },
+                "name": {
+                  "kind": "Identifier",
+                  "text": "sfr_if",
+                  "trivia": [
+                    {
+                      "kind": "Whitespace",
+                      "text": " "
+                    }
+                  ]
+                }
+              },
+              "declarators": [
+                {
+                  "kind": "Declarator",
+                  "name": {
+                    "kind": "Identifier",
+                    "text": "SFR",
+                    "trivia": [
+                      {
+                        "kind": "Whitespace",
+                        "text": " "
+                      }
+                    ]
+                  }
+                }
+              ],
+              "semi": {
+                "kind": "Semicolon",
+                "text": ";"
+              }
+            }
+          },
+          {
+            "kind": "ClassMethodPrototype",
+            "qualifiers": [
+              {
+                "kind": "ExternKeyword",
+                "text": "extern",
+                "trivia": [
+                  {
+                    "kind": "EndOfLine",
+                    "text": "\n"
+                  },
+                  {
+                    "kind": "EndOfLine",
+                    "text": "\n"
+                  }
+                ]
+              }
+            ],
+            "prototype": {
+              "kind": "FunctionPrototype",
+              "keyword": {
+                "kind": "TaskKeyword",
+                "text": "task",
+                "trivia": [
+                  {
+                    "kind": "Whitespace",
+                    "text": " "
+                  }
+                ]
+              },
+              "returnType": {
+                "kind": "ImplicitType"
+              },
+              "name": {
+                "kind": "IdentifierName",
+                "identifier": {
+                  "kind": "Identifier",
+                  "text": "run_phase",
+                  "trivia": [
+                    {
+                      "kind": "Whitespace",
+                      "text": " "
+                    }
+                  ]
+                }
+              },
+              "portList": {
+                "kind": "FunctionPortList",
+                "openParen": {
+                  "kind": "OpenParenthesis",
+                  "text": "("
+                },
+                "ports": [
+                  {
+                    "kind": "FunctionPort",
+                    "dataType": {
+                      "kind": "NamedType",
+                      "name": {
+                        "kind": "IdentifierName",
+                        "identifier": {
+                          "kind": "Identifier",
+                          "text": "uvm_phase"
+                        }
+                      }
+                    },
+                    "declarator": {
+                      "kind": "Declarator",
+                      "name": {
+                        "kind": "Identifier",
+                        "text": "phase",
+                        "trivia": [
+                          {
+                            "kind": "Whitespace",
+                            "text": " "
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ],
+                "closeParen": {
+                  "kind": "CloseParenthesis",
+                  "text": ")"
+                }
+              }
+            },
+            "semi": {
+              "kind": "Semicolon",
+              "text": ";"
+            }
+          }
+        ],
+        "endClass": {
+          "kind": "EndClassKeyword",
+          "text": "endclass",
+          "trivia": [
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            }
+          ]
+        },
+        "endBlockName": {
+          "kind": "NamedBlockClause",
+          "colon": {
+            "kind": "Colon",
+            "text": ":"
+          },
+          "name": {
+            "kind": "Identifier",
+            "text": "sfr_driver",
+            "trivia": [
+              {
+                "kind": "Whitespace",
+                "text": " "
+              }
+            ]
+          }
+        }
+      },
+      {
+        "kind": "TaskDeclaration",
+        "prototype": {
+          "kind": "FunctionPrototype",
+          "keyword": {
+            "kind": "TaskKeyword",
+            "text": "task",
+            "trivia": [
+              {
+                "kind": "EndOfLine",
+                "text": "\n"
+              },
+              {
+                "kind": "EndOfLine",
+                "text": "\n"
+              }
+            ]
+          },
+          "returnType": {
+            "kind": "ImplicitType"
+          },
+          "name": {
+            "kind": "ScopedName",
+            "left": {
+              "kind": "IdentifierName",
+              "identifier": {
+                "kind": "Identifier",
+                "text": "sfr_driver",
+                "trivia": [
+                  {
+                    "kind": "Whitespace",
+                    "text": " "
+                  }
+                ]
+              }
+            },
+            "separator": {
+              "kind": "DoubleColon",
+              "text": "::"
+            },
+            "right": {
+              "kind": "IdentifierName",
+              "identifier": {
+                "kind": "Identifier",
+                "text": "run_phase"
+              }
+            }
+          },
+          "portList": {
+            "kind": "FunctionPortList",
+            "openParen": {
+              "kind": "OpenParenthesis",
+              "text": "("
+            },
+            "ports": [
+              {
+                "kind": "FunctionPort",
+                "dataType": {
+                  "kind": "NamedType",
+                  "name": {
+                    "kind": "IdentifierName",
+                    "identifier": {
+                      "kind": "Identifier",
+                      "text": "uvm_phase"
+                    }
+                  }
+                },
+                "declarator": {
+                  "kind": "Declarator",
+                  "name": {
+                    "kind": "Identifier",
+                    "text": "phase",
+                    "trivia": [
+                      {
+                        "kind": "Whitespace",
+                        "text": " "
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "closeParen": {
+              "kind": "CloseParenthesis",
+              "text": ")"
+            }
+          }
+        },
+        "semi": {
+          "kind": "Semicolon",
+          "text": ";"
+        },
+        "items": [
+          {
+            "kind": "DataDeclaration",
+            "type": {
+              "kind": "NamedType",
+              "name": {
+                "kind": "IdentifierName",
+                "identifier": {
+                  "kind": "Identifier",
+                  "text": "sfr_seq_item",
+                  "trivia": [
+                    {
+                      "kind": "EndOfLine",
+                      "text": "\n"
+                    },
+                    {
+                      "kind": "Whitespace",
+                      "text": "  "
+                    }
+                  ]
+                }
+              }
+            },
+            "declarators": [
+              {
+                "kind": "Declarator",
+                "name": {
+                  "kind": "Identifier",
+                  "text": "item",
+                  "trivia": [
+                    {
+                      "kind": "Whitespace",
+                      "text": " "
+                    }
+                  ]
+                }
+              }
+            ],
+            "semi": {
+              "kind": "Semicolon",
+              "text": ";"
+            }
+          },
+          {
+            "kind": "ForeverStatement",
+            "foreverKeyword": {
+              "kind": "ForeverKeyword",
+              "text": "forever",
+              "trivia": [
+                {
+                  "kind": "EndOfLine",
+                  "text": "\n"
+                },
+                {
+                  "kind": "EndOfLine",
+                  "text": "\n"
+                },
+                {
+                  "kind": "Whitespace",
+                  "text": "  "
+                }
+              ]
+            },
+            "statement": {
+              "kind": "SequentialBlockStatement",
+              "begin": {
+                "kind": "BeginKeyword",
+                "text": "begin",
+                "trivia": [
+                  {
+                    "kind": "Whitespace",
+                    "text": " "
+                  }
+                ]
+              },
+              "items": [
+                {
+                  "kind": "ExpressionStatement",
+                  "expr": {
+                    "kind": "InvocationExpression",
+                    "left": {
+                      "kind": "ScopedName",
+                      "left": {
+                        "kind": "IdentifierName",
+                        "identifier": {
+                          "kind": "Identifier",
+                          "text": "seq_item_port",
+                          "trivia": [
+                            {
+                              "kind": "EndOfLine",
+                              "text": "\n"
+                            },
+                            {
+                              "kind": "Whitespace",
+                              "text": "    "
+                            }
+                          ]
+                        }
+                      },
+                      "separator": {
+                        "kind": "Dot",
+                        "text": "."
+                      },
+                      "right": {
+                        "kind": "IdentifierName",
+                        "identifier": {
+                          "kind": "Identifier",
+                          "text": "get_next_item"
+                        }
+                      }
+                    },
+                    "arguments": {
+                      "kind": "ArgumentList",
+                      "openParen": {
+                        "kind": "OpenParenthesis",
+                        "text": "("
+                      },
+                      "parameters": [
+                        {
+                          "kind": "OrderedArgument",
+                          "expr": {
+                            "kind": "SimplePropertyExpr",
+                            "expr": {
+                              "kind": "SimpleSequenceExpr",
+                              "expr": {
+                                "kind": "IdentifierName",
+                                "identifier": {
+                                  "kind": "Identifier",
+                                  "text": "item"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "closeParen": {
+                        "kind": "CloseParenthesis",
+                        "text": ")"
+                      }
+                    }
+                  },
+                  "semi": {
+                    "kind": "Semicolon",
+                    "text": ";"
+                  }
+                },
+                {
+                  "kind": "ConditionalStatement",
+                  "ifKeyword": {
+                    "kind": "IfKeyword",
+                    "text": "if",
+                    "trivia": [
+                      {
+                        "kind": "EndOfLine",
+                        "text": "\n"
+                      },
+                      {
+                        "kind": "Whitespace",
+                        "text": "    "
+                      }
+                    ]
+                  },
+                  "openParen": {
+                    "kind": "OpenParenthesis",
+                    "text": "("
+                  },
+                  "predicate": {
+                    "kind": "ConditionalPredicate",
+                    "conditions": [
+                      {
+                        "kind": "ConditionalPattern",
+                        "expr": {
+                          "kind": "EqualityExpression",
+                          "left": {
+                            "kind": "ScopedName",
+                            "left": {
+                              "kind": "IdentifierName",
+                              "identifier": {
+                                "kind": "Identifier",
+                                "text": "SFR"
+                              }
+                            },
+                            "separator": {
+                              "kind": "Dot",
+                              "text": "."
+                            },
+                            "right": {
+                              "kind": "IdentifierName",
+                              "identifier": {
+                                "kind": "Identifier",
+                                "text": "reset"
+                              }
+                            }
+                          },
+                          "operatorToken": {
+                            "kind": "DoubleEquals",
+                            "text": "==",
+                            "trivia": [
+                              {
+                                "kind": "Whitespace",
+                                "text": " "
+                              }
+                            ]
+                          },
+                          "right": {
+                            "kind": "IntegerLiteralExpression",
+                            "literal": {
+                              "kind": "IntegerLiteral",
+                              "text": "1",
+                              "trivia": [
+                                {
+                                  "kind": "Whitespace",
+                                  "text": " "
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "closeParen": {
+                    "kind": "CloseParenthesis",
+                    "text": ")"
+                  },
+                  "statement": {
+                    "kind": "SequentialBlockStatement",
+                    "begin": {
+                      "kind": "BeginKeyword",
+                      "text": "begin",
+                      "trivia": [
+                        {
+                          "kind": "Whitespace",
+                          "text": " "
+                        }
+                      ]
+                    },
+                    "items": [
+                      {
+                        "kind": "ExpressionStatement",
+                        "expr": {
+                          "kind": "NonblockingAssignmentExpression",
+                          "left": {
+                            "kind": "ScopedName",
+                            "left": {
+                              "kind": "IdentifierName",
+                              "identifier": {
+                                "kind": "Identifier",
+                                "text": "SFR",
+                                "trivia": [
+                                  {
+                                    "kind": "EndOfLine",
+                                    "text": "\n"
+                                  },
+                                  {
+                                    "kind": "Whitespace",
+                                    "text": "      "
+                                  }
+                                ]
+                              }
+                            },
+                            "separator": {
+                              "kind": "Dot",
+                              "text": "."
+                            },
+                            "right": {
+                              "kind": "IdentifierName",
+                              "identifier": {
+                                "kind": "Identifier",
+                                "text": "re"
+                              }
+                            }
+                          },
+                          "operatorToken": {
+                            "kind": "LessThanEquals",
+                            "text": "<=",
+                            "trivia": [
+                              {
+                                "kind": "Whitespace",
+                                "text": " "
+                              }
+                            ]
+                          },
+                          "right": {
+                            "kind": "IntegerLiteralExpression",
+                            "literal": {
+                              "kind": "IntegerLiteral",
+                              "text": "0",
+                              "trivia": [
+                                {
+                                  "kind": "Whitespace",
+                                  "text": " "
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "semi": {
+                          "kind": "Semicolon",
+                          "text": ";"
+                        }
+                      },
+                      {
+                        "kind": "ExpressionStatement",
+                        "expr": {
+                          "kind": "NonblockingAssignmentExpression",
+                          "left": {
+                            "kind": "ScopedName",
+                            "left": {
+                              "kind": "IdentifierName",
+                              "identifier": {
+                                "kind": "Identifier",
+                                "text": "SFR",
+                                "trivia": [
+                                  {
+                                    "kind": "EndOfLine",
+                                    "text": "\n"
+                                  },
+                                  {
+                                    "kind": "Whitespace",
+                                    "text": "      "
+                                  }
+                                ]
+                              }
+                            },
+                            "separator": {
+                              "kind": "Dot",
+                              "text": "."
+                            },
+                            "right": {
+                              "kind": "IdentifierName",
+                              "identifier": {
+                                "kind": "Identifier",
+                                "text": "we"
+                              }
+                            }
+                          },
+                          "operatorToken": {
+                            "kind": "LessThanEquals",
+                            "text": "<=",
+                            "trivia": [
+                              {
+                                "kind": "Whitespace",
+                                "text": " "
+                              }
+                            ]
+                          },
+                          "right": {
+                            "kind": "IntegerLiteralExpression",
+                            "literal": {
+                              "kind": "IntegerLiteral",
+                              "text": "0",
+                              "trivia": [
+                                {
+                                  "kind": "Whitespace",
+                                  "text": " "
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "semi": {
+                          "kind": "Semicolon",
+                          "text": ";"
+                        }
+                      },
+                      {
+                        "kind": "ExpressionStatement",
+                        "expr": {
+                          "kind": "NonblockingAssignmentExpression",
+                          "left": {
+                            "kind": "ScopedName",
+                            "left": {
+                              "kind": "IdentifierName",
+                              "identifier": {
+                                "kind": "Identifier",
+                                "text": "SFR",
+                                "trivia": [
+                                  {
+                                    "kind": "EndOfLine",
+                                    "text": "\n"
+                                  },
+                                  {
+                                    "kind": "Whitespace",
+                                    "text": "      "
+                                  }
+                                ]
+                              }
+                            },
+                            "separator": {
+                              "kind": "Dot",
+                              "text": "."
+                            },
+                            "right": {
+                              "kind": "IdentifierName",
+                              "identifier": {
+                                "kind": "Identifier",
+                                "text": "address"
+                              }
+                            }
+                          },
+                          "operatorToken": {
+                            "kind": "LessThanEquals",
+                            "text": "<=",
+                            "trivia": [
+                              {
+                                "kind": "Whitespace",
+                                "text": " "
+                              }
+                            ]
+                          },
+                          "right": {
+                            "kind": "IntegerLiteralExpression",
+                            "literal": {
+                              "kind": "IntegerLiteral",
+                              "text": "0",
+                              "trivia": [
+                                {
+                                  "kind": "Whitespace",
+                                  "text": " "
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "semi": {
+                          "kind": "Semicolon",
+                          "text": ";"
+                        }
+                      },
+                      {
+                        "kind": "ExpressionStatement",
+                        "expr": {
+                          "kind": "NonblockingAssignmentExpression",
+                          "left": {
+                            "kind": "ScopedName",
+                            "left": {
+                              "kind": "IdentifierName",
+                              "identifier": {
+                                "kind": "Identifier",
+                                "text": "SFR",
+                                "trivia": [
+                                  {
+                                    "kind": "EndOfLine",
+                                    "text": "\n"
+                                  },
+                                  {
+                                    "kind": "Whitespace",
+                                    "text": "      "
+                                  }
+                                ]
+                              }
+                            },
+                            "separator": {
+                              "kind": "Dot",
+                              "text": "."
+                            },
+                            "right": {
+                              "kind": "IdentifierName",
+                              "identifier": {
+                                "kind": "Identifier",
+                                "text": "write_data"
+                              }
+                            }
+                          },
+                          "operatorToken": {
+                            "kind": "LessThanEquals",
+                            "text": "<=",
+                            "trivia": [
+                              {
+                                "kind": "Whitespace",
+                                "text": " "
+                              }
+                            ]
+                          },
+                          "right": {
+                            "kind": "IntegerLiteralExpression",
+                            "literal": {
+                              "kind": "IntegerLiteral",
+                              "text": "0",
+                              "trivia": [
+                                {
+                                  "kind": "Whitespace",
+                                  "text": " "
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "semi": {
+                          "kind": "Semicolon",
+                          "text": ";"
+                        }
+                      },
+                      {
+                        "kind": "WaitStatement",
+                        "wait": {
+                          "kind": "WaitKeyword",
+                          "text": "wait",
+                          "trivia": [
+                            {
+                              "kind": "EndOfLine",
+                              "text": "\n"
+                            },
+                            {
+                              "kind": "Whitespace",
+                              "text": "      "
+                            }
+                          ]
+                        },
+                        "openParen": {
+                          "kind": "OpenParenthesis",
+                          "text": "("
+                        },
+                        "expr": {
+                          "kind": "EqualityExpression",
+                          "left": {
+                            "kind": "ScopedName",
+                            "left": {
+                              "kind": "IdentifierName",
+                              "identifier": {
+                                "kind": "Identifier",
+                                "text": "SFR"
+                              }
+                            },
+                            "separator": {
+                              "kind": "Dot",
+                              "text": "."
+                            },
+                            "right": {
+                              "kind": "IdentifierName",
+                              "identifier": {
+                                "kind": "Identifier",
+                                "text": "reset"
+                              }
+                            }
+                          },
+                          "operatorToken": {
+                            "kind": "DoubleEquals",
+                            "text": "==",
+                            "trivia": [
+                              {
+                                "kind": "Whitespace",
+                                "text": " "
+                              }
+                            ]
+                          },
+                          "right": {
+                            "kind": "IntegerLiteralExpression",
+                            "literal": {
+                              "kind": "IntegerLiteral",
+                              "text": "0",
+                              "trivia": [
+                                {
+                                  "kind": "Whitespace",
+                                  "text": " "
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "closeParen": {
+                          "kind": "CloseParenthesis",
+                          "text": ")"
+                        },
+                        "statement": {
+                          "kind": "EmptyStatement",
+                          "semicolon": {
+                            "kind": "Semicolon",
+                            "text": ";"
+                          }
+                        }
+                      }
+                    ],
+                    "end": {
+                      "kind": "EndKeyword",
+                      "text": "end",
+                      "trivia": [
+                        {
+                          "kind": "EndOfLine",
+                          "text": "\n"
+                        },
+                        {
+                          "kind": "Whitespace",
+                          "text": "    "
+                        }
+                      ]
+                    }
+                  },
+                  "elseClause": {
+                    "kind": "ElseClause",
+                    "elseKeyword": {
+                      "kind": "ElseKeyword",
+                      "text": "else",
+                      "trivia": [
+                        {
+                          "kind": "EndOfLine",
+                          "text": "\n"
+                        },
+                        {
+                          "kind": "Whitespace",
+                          "text": "    "
+                        }
+                      ]
+                    },
+                    "clause": {
+                      "kind": "SequentialBlockStatement",
+                      "begin": {
+                        "kind": "BeginKeyword",
+                        "text": "begin",
+                        "trivia": [
+                          {
+                            "kind": "Whitespace",
+                            "text": " "
+                          }
+                        ]
+                      },
+                      "items": [
+                        {
+                          "kind": "TimingControlStatement",
+                          "timingControl": {
+                            "kind": "EventControlWithExpression",
+                            "at": {
+                              "kind": "At",
+                              "text": "@",
+                              "trivia": [
+                                {
+                                  "kind": "EndOfLine",
+                                  "text": "\n"
+                                },
+                                {
+                                  "kind": "Whitespace",
+                                  "text": "      "
+                                }
+                              ]
+                            },
+                            "expr": {
+                              "kind": "ParenthesizedEventExpression",
+                              "openParen": {
+                                "kind": "OpenParenthesis",
+                                "text": "("
+                              },
+                              "expr": {
+                                "kind": "SignalEventExpression",
+                                "edge": {
+                                  "kind": "PosEdgeKeyword",
+                                  "text": "posedge"
+                                },
+                                "expr": {
+                                  "kind": "ScopedName",
+                                  "left": {
+                                    "kind": "IdentifierName",
+                                    "identifier": {
+                                      "kind": "Identifier",
+                                      "text": "SFR",
+                                      "trivia": [
+                                        {
+                                          "kind": "Whitespace",
+                                          "text": " "
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "separator": {
+                                    "kind": "Dot",
+                                    "text": "."
+                                  },
+                                  "right": {
+                                    "kind": "IdentifierName",
+                                    "identifier": {
+                                      "kind": "Identifier",
+                                      "text": "clk"
+                                    }
+                                  }
+                                }
+                              },
+                              "closeParen": {
+                                "kind": "CloseParenthesis",
+                                "text": ")"
+                              }
+                            }
+                          },
+                          "statement": {
+                            "kind": "EmptyStatement",
+                            "semicolon": {
+                              "kind": "Semicolon",
+                              "text": ";"
+                            }
+                          }
+                        },
+                        {
+                          "kind": "ExpressionStatement",
+                          "expr": {
+                            "kind": "AssignmentExpression",
+                            "left": {
+                              "kind": "ScopedName",
+                              "left": {
+                                "kind": "IdentifierName",
+                                "identifier": {
+                                  "kind": "Identifier",
+                                  "text": "SFR",
+                                  "trivia": [
+                                    {
+                                      "kind": "EndOfLine",
+                                      "text": "\n"
+                                    },
+                                    {
+                                      "kind": "Whitespace",
+                                      "text": "      "
+                                    }
+                                  ]
+                                }
+                              },
+                              "separator": {
+                                "kind": "Dot",
+                                "text": "."
+                              },
+                              "right": {
+                                "kind": "IdentifierName",
+                                "identifier": {
+                                  "kind": "Identifier",
+                                  "text": "address"
+                                }
+                              }
+                            },
+                            "operatorToken": {
+                              "kind": "Equals",
+                              "text": "=",
+                              "trivia": [
+                                {
+                                  "kind": "Whitespace",
+                                  "text": " "
+                                }
+                              ]
+                            },
+                            "right": {
+                              "kind": "ScopedName",
+                              "left": {
+                                "kind": "IdentifierName",
+                                "identifier": {
+                                  "kind": "Identifier",
+                                  "text": "item",
+                                  "trivia": [
+                                    {
+                                      "kind": "Whitespace",
+                                      "text": " "
+                                    }
+                                  ]
+                                }
+                              },
+                              "separator": {
+                                "kind": "Dot",
+                                "text": "."
+                              },
+                              "right": {
+                                "kind": "IdentifierName",
+                                "identifier": {
+                                  "kind": "Identifier",
+                                  "text": "address"
+                                }
+                              }
+                            }
+                          },
+                          "semi": {
+                            "kind": "Semicolon",
+                            "text": ";"
+                          }
+                        },
+                        {
+                          "kind": "ExpressionStatement",
+                          "expr": {
+                            "kind": "NonblockingAssignmentExpression",
+                            "left": {
+                              "kind": "ScopedName",
+                              "left": {
+                                "kind": "IdentifierName",
+                                "identifier": {
+                                  "kind": "Identifier",
+                                  "text": "SFR",
+                                  "trivia": [
+                                    {
+                                      "kind": "EndOfLine",
+                                      "text": "\n"
+                                    },
+                                    {
+                                      "kind": "Whitespace",
+                                      "text": "      "
+                                    }
+                                  ]
+                                }
+                              },
+                              "separator": {
+                                "kind": "Dot",
+                                "text": "."
+                              },
+                              "right": {
+                                "kind": "IdentifierName",
+                                "identifier": {
+                                  "kind": "Identifier",
+                                  "text": "we"
+                                }
+                              }
+                            },
+                            "operatorToken": {
+                              "kind": "LessThanEquals",
+                              "text": "<=",
+                              "trivia": [
+                                {
+                                  "kind": "Whitespace",
+                                  "text": " "
+                                }
+                              ]
+                            },
+                            "right": {
+                              "kind": "ScopedName",
+                              "left": {
+                                "kind": "IdentifierName",
+                                "identifier": {
+                                  "kind": "Identifier",
+                                  "text": "item",
+                                  "trivia": [
+                                    {
+                                      "kind": "Whitespace",
+                                      "text": " "
+                                    }
+                                  ]
+                                }
+                              },
+                              "separator": {
+                                "kind": "Dot",
+                                "text": "."
+                              },
+                              "right": {
+                                "kind": "IdentifierName",
+                                "identifier": {
+                                  "kind": "Identifier",
+                                  "text": "we"
+                                }
+                              }
+                            }
+                          },
+                          "semi": {
+                            "kind": "Semicolon",
+                            "text": ";"
+                          }
+                        },
+                        {
+                          "kind": "ExpressionStatement",
+                          "expr": {
+                            "kind": "NonblockingAssignmentExpression",
+                            "left": {
+                              "kind": "ScopedName",
+                              "left": {
+                                "kind": "IdentifierName",
+                                "identifier": {
+                                  "kind": "Identifier",
+                                  "text": "SFR",
+                                  "trivia": [
+                                    {
+                                      "kind": "EndOfLine",
+                                      "text": "\n"
+                                    },
+                                    {
+                                      "kind": "Whitespace",
+                                      "text": "      "
+                                    }
+                                  ]
+                                }
+                              },
+                              "separator": {
+                                "kind": "Dot",
+                                "text": "."
+                              },
+                              "right": {
+                                "kind": "IdentifierName",
+                                "identifier": {
+                                  "kind": "Identifier",
+                                  "text": "write_data"
+                                }
+                              }
+                            },
+                            "operatorToken": {
+                              "kind": "LessThanEquals",
+                              "text": "<=",
+                              "trivia": [
+                                {
+                                  "kind": "Whitespace",
+                                  "text": " "
+                                }
+                              ]
+                            },
+                            "right": {
+                              "kind": "ScopedName",
+                              "left": {
+                                "kind": "IdentifierName",
+                                "identifier": {
+                                  "kind": "Identifier",
+                                  "text": "item",
+                                  "trivia": [
+                                    {
+                                      "kind": "Whitespace",
+                                      "text": " "
+                                    }
+                                  ]
+                                }
+                              },
+                              "separator": {
+                                "kind": "Dot",
+                                "text": "."
+                              },
+                              "right": {
+                                "kind": "IdentifierName",
+                                "identifier": {
+                                  "kind": "Identifier",
+                                  "text": "write_data"
+                                }
+                              }
+                            }
+                          },
+                          "semi": {
+                            "kind": "Semicolon",
+                            "text": ";"
+                          }
+                        },
+                        {
+                          "kind": "ExpressionStatement",
+                          "expr": {
+                            "kind": "NonblockingAssignmentExpression",
+                            "left": {
+                              "kind": "ScopedName",
+                              "left": {
+                                "kind": "IdentifierName",
+                                "identifier": {
+                                  "kind": "Identifier",
+                                  "text": "SFR",
+                                  "trivia": [
+                                    {
+                                      "kind": "EndOfLine",
+                                      "text": "\n"
+                                    },
+                                    {
+                                      "kind": "Whitespace",
+                                      "text": "      "
+                                    }
+                                  ]
+                                }
+                              },
+                              "separator": {
+                                "kind": "Dot",
+                                "text": "."
+                              },
+                              "right": {
+                                "kind": "IdentifierName",
+                                "identifier": {
+                                  "kind": "Identifier",
+                                  "text": "re"
+                                }
+                              }
+                            },
+                            "operatorToken": {
+                              "kind": "LessThanEquals",
+                              "text": "<=",
+                              "trivia": [
+                                {
+                                  "kind": "Whitespace",
+                                  "text": " "
+                                }
+                              ]
+                            },
+                            "right": {
+                              "kind": "ScopedName",
+                              "left": {
+                                "kind": "IdentifierName",
+                                "identifier": {
+                                  "kind": "Identifier",
+                                  "text": "item",
+                                  "trivia": [
+                                    {
+                                      "kind": "Whitespace",
+                                      "text": " "
+                                    }
+                                  ]
+                                }
+                              },
+                              "separator": {
+                                "kind": "Dot",
+                                "text": "."
+                              },
+                              "right": {
+                                "kind": "IdentifierName",
+                                "identifier": {
+                                  "kind": "Identifier",
+                                  "text": "re"
+                                }
+                              }
+                            }
+                          },
+                          "semi": {
+                            "kind": "Semicolon",
+                            "text": ";"
+                          }
+                        },
+                        {
+                          "kind": "TimingControlStatement",
+                          "timingControl": {
+                            "kind": "EventControlWithExpression",
+                            "at": {
+                              "kind": "At",
+                              "text": "@",
+                              "trivia": [
+                                {
+                                  "kind": "EndOfLine",
+                                  "text": "\n"
+                                },
+                                {
+                                  "kind": "Whitespace",
+                                  "text": "      "
+                                }
+                              ]
+                            },
+                            "expr": {
+                              "kind": "ParenthesizedEventExpression",
+                              "openParen": {
+                                "kind": "OpenParenthesis",
+                                "text": "("
+                              },
+                              "expr": {
+                                "kind": "SignalEventExpression",
+                                "edge": {
+                                  "kind": "PosEdgeKeyword",
+                                  "text": "posedge"
+                                },
+                                "expr": {
+                                  "kind": "ScopedName",
+                                  "left": {
+                                    "kind": "IdentifierName",
+                                    "identifier": {
+                                      "kind": "Identifier",
+                                      "text": "SFR",
+                                      "trivia": [
+                                        {
+                                          "kind": "Whitespace",
+                                          "text": " "
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "separator": {
+                                    "kind": "Dot",
+                                    "text": "."
+                                  },
+                                  "right": {
+                                    "kind": "IdentifierName",
+                                    "identifier": {
+                                      "kind": "Identifier",
+                                      "text": "clk"
+                                    }
+                                  }
+                                }
+                              },
+                              "closeParen": {
+                                "kind": "CloseParenthesis",
+                                "text": ")"
+                              }
+                            }
+                          },
+                          "statement": {
+                            "kind": "EmptyStatement",
+                            "semicolon": {
+                              "kind": "Semicolon",
+                              "text": ";"
+                            }
+                          }
+                        },
+                        {
+                          "kind": "ConditionalStatement",
+                          "ifKeyword": {
+                            "kind": "IfKeyword",
+                            "text": "if",
+                            "trivia": [
+                              {
+                                "kind": "EndOfLine",
+                                "text": "\n"
+                              },
+                              {
+                                "kind": "Whitespace",
+                                "text": "      "
+                              }
+                            ]
+                          },
+                          "openParen": {
+                            "kind": "OpenParenthesis",
+                            "text": "("
+                          },
+                          "predicate": {
+                            "kind": "ConditionalPredicate",
+                            "conditions": [
+                              {
+                                "kind": "ConditionalPattern",
+                                "expr": {
+                                  "kind": "EqualityExpression",
+                                  "left": {
+                                    "kind": "ScopedName",
+                                    "left": {
+                                      "kind": "IdentifierName",
+                                      "identifier": {
+                                        "kind": "Identifier",
+                                        "text": "SFR"
+                                      }
+                                    },
+                                    "separator": {
+                                      "kind": "Dot",
+                                      "text": "."
+                                    },
+                                    "right": {
+                                      "kind": "IdentifierName",
+                                      "identifier": {
+                                        "kind": "Identifier",
+                                        "text": "re"
+                                      }
+                                    }
+                                  },
+                                  "operatorToken": {
+                                    "kind": "DoubleEquals",
+                                    "text": "==",
+                                    "trivia": [
+                                      {
+                                        "kind": "Whitespace",
+                                        "text": " "
+                                      }
+                                    ]
+                                  },
+                                  "right": {
+                                    "kind": "IntegerLiteralExpression",
+                                    "literal": {
+                                      "kind": "IntegerLiteral",
+                                      "text": "1",
+                                      "trivia": [
+                                        {
+                                          "kind": "Whitespace",
+                                          "text": " "
+                                        }
+                                      ]
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "closeParen": {
+                            "kind": "CloseParenthesis",
+                            "text": ")"
+                          },
+                          "statement": {
+                            "kind": "SequentialBlockStatement",
+                            "begin": {
+                              "kind": "BeginKeyword",
+                              "text": "begin",
+                              "trivia": [
+                                {
+                                  "kind": "Whitespace",
+                                  "text": " "
+                                }
+                              ]
+                            },
+                            "items": [
+                              {
+                                "kind": "ExpressionStatement",
+                                "expr": {
+                                  "kind": "AssignmentExpression",
+                                  "left": {
+                                    "kind": "ScopedName",
+                                    "left": {
+                                      "kind": "IdentifierName",
+                                      "identifier": {
+                                        "kind": "Identifier",
+                                        "text": "item",
+                                        "trivia": [
+                                          {
+                                            "kind": "EndOfLine",
+                                            "text": "\n"
+                                          },
+                                          {
+                                            "kind": "Whitespace",
+                                            "text": "        "
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "separator": {
+                                      "kind": "Dot",
+                                      "text": "."
+                                    },
+                                    "right": {
+                                      "kind": "IdentifierName",
+                                      "identifier": {
+                                        "kind": "Identifier",
+                                        "text": "read_data"
+                                      }
+                                    }
+                                  },
+                                  "operatorToken": {
+                                    "kind": "Equals",
+                                    "text": "=",
+                                    "trivia": [
+                                      {
+                                        "kind": "Whitespace",
+                                        "text": " "
+                                      }
+                                    ]
+                                  },
+                                  "right": {
+                                    "kind": "ScopedName",
+                                    "left": {
+                                      "kind": "IdentifierName",
+                                      "identifier": {
+                                        "kind": "Identifier",
+                                        "text": "SFR",
+                                        "trivia": [
+                                          {
+                                            "kind": "Whitespace",
+                                            "text": " "
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "separator": {
+                                      "kind": "Dot",
+                                      "text": "."
+                                    },
+                                    "right": {
+                                      "kind": "IdentifierName",
+                                      "identifier": {
+                                        "kind": "Identifier",
+                                        "text": "read_data"
+                                      }
+                                    }
+                                  }
+                                },
+                                "semi": {
+                                  "kind": "Semicolon",
+                                  "text": ";"
+                                }
+                              },
+                              {
+                                "kind": "ExpressionStatement",
+                                "expr": {
+                                  "kind": "NonblockingAssignmentExpression",
+                                  "left": {
+                                    "kind": "ScopedName",
+                                    "left": {
+                                      "kind": "IdentifierName",
+                                      "identifier": {
+                                        "kind": "Identifier",
+                                        "text": "SFR",
+                                        "trivia": [
+                                          {
+                                            "kind": "EndOfLine",
+                                            "text": "\n"
+                                          },
+                                          {
+                                            "kind": "Whitespace",
+                                            "text": "        "
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "separator": {
+                                      "kind": "Dot",
+                                      "text": "."
+                                    },
+                                    "right": {
+                                      "kind": "IdentifierName",
+                                      "identifier": {
+                                        "kind": "Identifier",
+                                        "text": "re"
+                                      }
+                                    }
+                                  },
+                                  "operatorToken": {
+                                    "kind": "LessThanEquals",
+                                    "text": "<=",
+                                    "trivia": [
+                                      {
+                                        "kind": "Whitespace",
+                                        "text": " "
+                                      }
+                                    ]
+                                  },
+                                  "right": {
+                                    "kind": "IntegerLiteralExpression",
+                                    "literal": {
+                                      "kind": "IntegerLiteral",
+                                      "text": "0",
+                                      "trivia": [
+                                        {
+                                          "kind": "Whitespace",
+                                          "text": " "
+                                        }
+                                      ]
+                                    }
+                                  }
+                                },
+                                "semi": {
+                                  "kind": "Semicolon",
+                                  "text": ";"
+                                }
+                              }
+                            ],
+                            "end": {
+                              "kind": "EndKeyword",
+                              "text": "end",
+                              "trivia": [
+                                {
+                                  "kind": "EndOfLine",
+                                  "text": "\n"
+                                },
+                                {
+                                  "kind": "Whitespace",
+                                  "text": "      "
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "kind": "ExpressionStatement",
+                          "expr": {
+                            "kind": "NonblockingAssignmentExpression",
+                            "left": {
+                              "kind": "ScopedName",
+                              "left": {
+                                "kind": "IdentifierName",
+                                "identifier": {
+                                  "kind": "Identifier",
+                                  "text": "SFR",
+                                  "trivia": [
+                                    {
+                                      "kind": "EndOfLine",
+                                      "text": "\n"
+                                    },
+                                    {
+                                      "kind": "Whitespace",
+                                      "text": "      "
+                                    }
+                                  ]
+                                }
+                              },
+                              "separator": {
+                                "kind": "Dot",
+                                "text": "."
+                              },
+                              "right": {
+                                "kind": "IdentifierName",
+                                "identifier": {
+                                  "kind": "Identifier",
+                                  "text": "we"
+                                }
+                              }
+                            },
+                            "operatorToken": {
+                              "kind": "LessThanEquals",
+                              "text": "<=",
+                              "trivia": [
+                                {
+                                  "kind": "Whitespace",
+                                  "text": " "
+                                }
+                              ]
+                            },
+                            "right": {
+                              "kind": "IntegerLiteralExpression",
+                              "literal": {
+                                "kind": "IntegerLiteral",
+                                "text": "0",
+                                "trivia": [
+                                  {
+                                    "kind": "Whitespace",
+                                    "text": " "
+                                  }
+                                ]
+                              }
+                            }
+                          },
+                          "semi": {
+                            "kind": "Semicolon",
+                            "text": ";"
+                          }
+                        }
+                      ],
+                      "end": {
+                        "kind": "EndKeyword",
+                        "text": "end",
+                        "trivia": [
+                          {
+                            "kind": "EndOfLine",
+                            "text": "\n"
+                          },
+                          {
+                            "kind": "Whitespace",
+                            "text": "    "
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "ExpressionStatement",
+                  "expr": {
+                    "kind": "InvocationExpression",
+                    "left": {
+                      "kind": "ScopedName",
+                      "left": {
+                        "kind": "IdentifierName",
+                        "identifier": {
+                          "kind": "Identifier",
+                          "text": "seq_item_port",
+                          "trivia": [
+                            {
+                              "kind": "EndOfLine",
+                              "text": "\n"
+                            },
+                            {
+                              "kind": "Whitespace",
+                              "text": "    "
+                            }
+                          ]
+                        }
+                      },
+                      "separator": {
+                        "kind": "Dot",
+                        "text": "."
+                      },
+                      "right": {
+                        "kind": "IdentifierName",
+                        "identifier": {
+                          "kind": "Identifier",
+                          "text": "item_done"
+                        }
+                      }
+                    },
+                    "arguments": {
+                      "kind": "ArgumentList",
+                      "openParen": {
+                        "kind": "OpenParenthesis",
+                        "text": "("
+                      },
+                      "closeParen": {
+                        "kind": "CloseParenthesis",
+                        "text": ")"
+                      }
+                    }
+                  },
+                  "semi": {
+                    "kind": "Semicolon",
+                    "text": ";"
+                  }
+                }
+              ],
+              "end": {
+                "kind": "EndKeyword",
+                "text": "end",
+                "trivia": [
+                  {
+                    "kind": "EndOfLine",
+                    "text": "\n"
+                  },
+                  {
+                    "kind": "Whitespace",
+                    "text": "  "
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "end": {
+          "kind": "EndTaskKeyword",
+          "text": "endtask",
+          "trivia": [
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            },
+            {
+              "kind": "EndOfLine",
+              "text": "\n"
+            }
+          ]
+        },
+        "endBlockName": {
+          "kind": "NamedBlockClause",
+          "colon": {
+            "kind": "Colon",
+            "text": ":"
+          },
+          "name": {
+            "kind": "Identifier",
+            "text": "run_phase",
+            "trivia": [
+              {
+                "kind": "Whitespace",
+                "text": " "
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

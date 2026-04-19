@@ -1,0 +1,164 @@
+{
+  "component": {
+    "name": "sfr_driver",
+    "base_type": "uvm_driver",
+    "parameters": [
+      "sfr_seq_item"
+    ],
+    "members": [
+      {
+        "type": "virtual_interface",
+        "name": "SFR",
+        "interface_type": "sfr_if"
+      },
+      {
+        "type": "function",
+        "name": "new",
+        "arguments": [
+          {
+            "name": "name",
+            "type": "string",
+            "default": "= \"sfr_driver\""
+          },
+          {
+            "name": "parent",
+            "type": "uvm_component",
+            "default": "= null"
+          }
+        ],
+        "body": []
+      },
+      {
+        "type": "task",
+        "name": "run_phase",
+        "arguments": [
+          {
+            "name": "phase",
+            "type": "uvm_phase"
+          }
+        ],
+        "body": [
+          {
+            "type": "variable_declaration",
+            "data_type": "sfr_seq_item",
+            "name": "item"
+          },
+          {
+            "type": "loop",
+            "loop_type": "forever",
+            "children": [
+              {
+                "type": "method_call",
+                "caller": "seq_item_port",
+                "method": "get_next_item",
+                "arguments": [
+                  "item"
+                ],
+                "semantic_type": "seq_get"
+              },
+              {
+                "type": "if_else",
+                "condition": "SFR.reset == 1",
+                "true_branch": [
+                  {
+                    "type": "assignment",
+                    "operator": "<=",
+                    "lhs": "SFR.re",
+                    "rhs": "0"
+                  },
+                  {
+                    "type": "assignment",
+                    "operator": "<=",
+                    "lhs": "SFR.we",
+                    "rhs": "0"
+                  },
+                  {
+                    "type": "assignment",
+                    "operator": "<=",
+                    "lhs": "SFR.address",
+                    "rhs": "0"
+                  },
+                  {
+                    "type": "assignment",
+                    "operator": "<=",
+                    "lhs": "SFR.write_data",
+                    "rhs": "0"
+                  },
+                  {
+                    "type": "wait_statement",
+                    "condition": "SFR.reset == 0"
+                  }
+                ],
+                "false_branch": [
+                  {
+                    "type": "event_control",
+                    "event": "posedge SFR.clk"
+                  },
+                  {
+                    "type": "assignment",
+                    "operator": "=",
+                    "lhs": "SFR.address",
+                    "rhs": "item.address"
+                  },
+                  {
+                    "type": "assignment",
+                    "operator": "<=",
+                    "lhs": "SFR.we",
+                    "rhs": "item.we"
+                  },
+                  {
+                    "type": "assignment",
+                    "operator": "<=",
+                    "lhs": "SFR.write_data",
+                    "rhs": "item.write_data"
+                  },
+                  {
+                    "type": "assignment",
+                    "operator": "<=",
+                    "lhs": "SFR.re",
+                    "rhs": "item.re"
+                  },
+                  {
+                    "type": "event_control",
+                    "event": "posedge SFR.clk"
+                  },
+                  {
+                    "type": "if",
+                    "condition": "SFR.re == 1",
+                    "true_branch": [
+                      {
+                        "type": "assignment",
+                        "operator": "=",
+                        "lhs": "item.read_data",
+                        "rhs": "SFR.read_data"
+                      },
+                      {
+                        "type": "assignment",
+                        "operator": "<=",
+                        "lhs": "SFR.re",
+                        "rhs": "0"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "assignment",
+                    "operator": "<=",
+                    "lhs": "SFR.we",
+                    "rhs": "0"
+                  }
+                ]
+              },
+              {
+                "type": "method_call",
+                "caller": "seq_item_port",
+                "method": "item_done",
+                "arguments": [],
+                "semantic_type": "seq_done"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
