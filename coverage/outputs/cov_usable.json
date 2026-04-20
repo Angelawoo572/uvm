@@ -1,0 +1,335 @@
+{
+  "reference": "cov",
+  "covergroups": [
+    {
+      "reference": "addr_cg",
+      "sample_event": "manual",
+      "coverpoints": [
+        {
+          "reference": "cp_addr",
+          "expression": "addr",
+          "signals": [
+            {
+              "reference": "addr",
+              "width": 32
+            }
+          ],
+          "bins": [
+            {
+              "reference": "MODE0",
+              "states": [
+                "MODE0_OFFSET"
+              ]
+            },
+            {
+              "reference": "MODE1",
+              "states": [
+                "MODE1_OFFSET"
+              ]
+            },
+            {
+              "reference": "MODE2",
+              "states": [
+                "MODE2_OFFSET"
+              ]
+            },
+            {
+              "reference": "ARRAY",
+              "states": [
+                "[ARRAY_OFFSET:ARRAY_OFFSET_CEILING]"
+              ]
+            },
+            {
+              "reference": "other_addresses",
+              "states": [
+                "default"
+              ]
+            }
+          ],
+          "illegal_bins": [],
+          "ignore_bins": []
+        }
+      ],
+      "crosses": []
+    },
+    {
+      "reference": "array_cg",
+      "sample_event": "manual",
+      "coverpoints": [
+        {
+          "reference": "cp_addr",
+          "expression": "item_req_addr_i",
+          "signals": [
+            {
+              "reference": "item_req_addr_i",
+              "width": 32
+            }
+          ],
+          "bins": [],
+          "illegal_bins": [
+            {
+              "reference": "outside_range",
+              "states": [
+                "default"
+              ]
+            }
+          ],
+          "ignore_bins": []
+        }
+      ],
+      "crosses": []
+    },
+    {
+      "reference": "valid_cg",
+      "sample_event": "manual",
+      "coverpoints": [
+        {
+          "reference": "cp_valid",
+          "expression": "item_rsp_valid",
+          "signals": [
+            {
+              "reference": "item_rsp_valid",
+              "width": 32
+            }
+          ],
+          "bins": [
+            {
+              "reference": "bit0",
+              "states": [
+                "8'b???????1"
+              ]
+            },
+            {
+              "reference": "bit1",
+              "states": [
+                "8'b??????1?"
+              ]
+            },
+            {
+              "reference": "bit2",
+              "states": [
+                "8'b?????1??"
+              ]
+            },
+            {
+              "reference": "bit3",
+              "states": [
+                "8'b????1???"
+              ]
+            },
+            {
+              "reference": "bit4",
+              "states": [
+                "8'b???1????"
+              ]
+            },
+            {
+              "reference": "bit5",
+              "states": [
+                "8'b??1?????"
+              ]
+            },
+            {
+              "reference": "bit6",
+              "states": [
+                "8'b?1??????"
+              ]
+            },
+            {
+              "reference": "bit7",
+              "states": [
+                "8'b1???????"
+              ]
+            }
+          ],
+          "illegal_bins": [],
+          "ignore_bins": []
+        },
+        {
+          "reference": "cp_range",
+          "expression": "item_rsp_data_o",
+          "signals": [
+            {
+              "reference": "item_rsp_data_o",
+              "width": 32
+            }
+          ],
+          "bins": [
+            {
+              "reference": "split_0",
+              "states": [
+                "0"
+              ]
+            }
+          ],
+          "illegal_bins": [],
+          "ignore_bins": []
+        }
+      ],
+      "crosses": []
+    },
+    {
+      "reference": "mode2_cg",
+      "sample_event": "manual",
+      "coverpoints": [
+        {
+          "reference": "cp_data",
+          "expression": "datai",
+          "signals": [
+            {
+              "reference": "datai",
+              "width": 32
+            }
+          ],
+          "bins": [
+            {
+              "reference": "short",
+              "states": [
+                "MODE2_SHORT"
+              ]
+            },
+            {
+              "reference": "long",
+              "states": [
+                "MODE2_LONG"
+              ]
+            },
+            {
+              "reference": "average",
+              "states": [
+                "MODE2_AVERAGE"
+              ]
+            },
+            {
+              "reference": "otherstuff",
+              "states": [
+                "default"
+              ]
+            }
+          ],
+          "illegal_bins": [],
+          "ignore_bins": []
+        }
+      ],
+      "crosses": []
+    },
+    {
+      "reference": "cross_cg",
+      "sample_event": "manual",
+      "coverpoints": [
+        {
+          "reference": "cp_we",
+          "expression": "item_req_we",
+          "signals": [
+            {
+              "reference": "item_req_we",
+              "width": 32
+            }
+          ],
+          "bins": [
+            {
+              "reference": "is_write",
+              "states": [
+                "1"
+              ]
+            }
+          ],
+          "illegal_bins": [],
+          "ignore_bins": [
+            {
+              "reference": "otherwise",
+              "states": [
+                "0"
+              ]
+            }
+          ]
+        },
+        {
+          "reference": "cp_re",
+          "expression": "item_req_re",
+          "signals": [
+            {
+              "reference": "item_req_re",
+              "width": 32
+            }
+          ],
+          "bins": [
+            {
+              "reference": "is_not_read",
+              "states": [
+                "0"
+              ]
+            }
+          ],
+          "illegal_bins": [],
+          "ignore_bins": [
+            {
+              "reference": "otherwise",
+              "states": [
+                "1"
+              ]
+            }
+          ]
+        },
+        {
+          "reference": "cp_addr",
+          "expression": "item_req_addr_i",
+          "signals": [
+            {
+              "reference": "item_req_addr_i",
+              "width": 32
+            }
+          ],
+          "bins": [
+            {
+              "reference": "ANY_ARRAY_ADDR",
+              "states": [
+                "[ARRAY_OFFSET:ARRAY_OFFSET_CEILING]"
+              ]
+            }
+          ],
+          "illegal_bins": [],
+          "ignore_bins": []
+        }
+      ],
+      "crosses": [
+        {
+          "reference": "is_write_to_array",
+          "coverpoints": [
+            "cp_we",
+            "cp_re",
+            "cp_addr"
+          ]
+        }
+      ]
+    },
+    {
+      "reference": "burst_cg",
+      "sample_event": "manual",
+      "coverpoints": [
+        {
+          "reference": "cp_addr",
+          "expression": "item_req_addr_i",
+          "signals": [
+            {
+              "reference": "item_req_addr_i",
+              "width": 32
+            }
+          ],
+          "bins": [
+            {
+              "reference": "ordered",
+              "states": [
+                "NOT_SUPPORTED"
+              ]
+            }
+          ],
+          "illegal_bins": [],
+          "ignore_bins": []
+        }
+      ],
+      "crosses": []
+    }
+  ],
+  "constants": "outputs/constants.svh"
+}
