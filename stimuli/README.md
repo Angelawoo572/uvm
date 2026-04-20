@@ -110,12 +110,12 @@ stimuli/
 The `stimuli_fsm/` directory contains the main RTL generation pipeline. Given a text file of SV-style constraint declarations, `main.py` generates a ready-to-compile set of SystemVerilog files.
 
 ```
-constraints.txt  →  [main.py]  →  constraint_solver.sv  (populated)
-                              →  constraints.db          (constraint ID mapping)
-                              →  stimuli_fsm.sv          (copied)
-                              →  bounded_LFSR.sv         (copied)
-                              →  seq_fsm.sv              (copied)
-                              →  seq_stim_if.svh         (copied)
+constraints.txt  →  [main.py]  →  constraint_solver.sv  (generated: solver modules populated)
+                              →  constraints.db          (generated: constraint ID mapping)
+                              →  stimuli_fsm.sv          (copied from stimuli_fsm/ templates)
+                              →  bounded_LFSR.sv         (copied from stimuli_fsm/ templates)
+                              →  seq_fsm.sv              (copied from stimuli_fsm/ templates)
+                              →  seq_stim_if.svh         (copied from stimuli_fsm/ templates)
 ```
 
 ### How to Run
