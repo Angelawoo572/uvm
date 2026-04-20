@@ -14,9 +14,9 @@ Converts UVM SystemVerilog source files into structured JSON for use by the asse
 
 **`parse_seq_with_json.py`** — extracts the `body` task flow from classes extending `uvm_sequence #(T)`: create, randomize, start_item, finish_item, and UVM macros (`uvm_do`, `uvm_do_with`, etc.).
 
-**`constraint_preprocessor.py`** — extracts and normalizes rand variable constraints into numeric bounds (`original_min`, `original_max`, `FIXED_MASK`, `FIXED_VAL`) for use by the stimuli solver.
+**`constraint_preprocessor.py`** — extracts and normalizes rand variable constraints into numeric bounds (`original_min`, `original_max`, `FIXED_MASK`, `FIXED_VAL`) for use by the stimuli constraint solver. Intended input is a sequence item file with constraints of the form `inside {[A:B]}`, `<`/`<=`/`>`/`>=`, or bit-slice `==`.
 
-> `parse_drivers.py`, `parse_seq.py`, `parse_seq_item.py` are earlier versions of the above. Prefer the `_with_json.py` versions.
+> `parse_drivers.py`, `parse_seq.py`, `parse_seq_item.py` are earlier versions also in active use. The `_with_json.py` versions add JSON output support and are used by the assembler pipeline; the non-json versions are used separately by other team members.
 
 ## Setup
 
@@ -60,12 +60,12 @@ All parsers default to writing output next to the input file with a descriptive 
 ## Assumptions
 
 - Input files follow UVM coding conventions. Parsers identify components by base class name (`uvm_driver`, `uvm_monitor`, `uvm_sequence`, `uvm_sequence_item`) — they are not general-purpose SV parsers.
-- Both the class declaration and any out-of-class method definitions (e.g., `task sfr_driver::run_phase(...)`) must be in the same input file.
+- Both the class declaration and any out-of-class method definitions (e.g., `task sfr_driver::run_phase(...)`) must be in the same input file. Confirmed by author: each component-specific parser requires this.
 - Only locally declared fields and constraints are extracted; inherited members are not expanded.
 - `pyslang` will emit diagnostics when UVM base class symbols are not in scope (common when parsing a single package file without the full UVM library). These are safely ignored — parsing still completes.
 
 ## Observed Limitations
 
-- `constraint_preprocessor.py` only handles simple single-variable constraints (`inside`, `<`, `<=`, `>`, `>=`, bit-slice `==`). Running it on `stress.pkg.sv` produces no output because that file's constraints use inline `with { ... }` syntax on `randomize()` calls, which is not in the supported subset. *(Need to confirm with author: is there a test file where this script works as intended?)*
+- `constraint_preprocessor.py` does not support inline `with { ... }` randomize constraints, so running it on `stress.pkg.sv` produces no output. It is intended for standalone constraint blocks using `inside`, `<`/`<=`/`>`/`>=`, or bit-slice `==` syntax.
 - `parse_drivers.py` and `parse_driver_with_json.py` both default to writing `<basename>_summary.txt`, so running both on the same file overwrites the earlier output.
 - Diagnostics from `parse_seq_item_with_json.py` print as `<pyslang.pyslang.Diagnostic object>` rather than a human-readable message.
