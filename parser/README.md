@@ -1,111 +1,71 @@
 # Parser Module
 
-Parses UVM SystemVerilog (`.sv`/`.svh`) files into structured JSON or text summaries for use by the assembler, coverage, and stimuli modules.
-
-**Setup:** `uv sync` from repo root (requires `pyslang >= 10.0.0`).
-
----
+Converts UVM SystemVerilog source files into structured JSON for use by the assembler and coverage modules.
 
 ## Scripts
 
-### `sv_to_json.py` — Raw CST export
+**`sv_to_json.py`** — generates a raw Concrete Syntax Tree (CST) JSON from any `.sv`/`.svh` file. This is the base layer all other parsers build on.
+
+**`parse_driver_with_json.py`** — extracts `run_phase` flow from classes extending `uvm_driver #(T)`: sequencer handshakes, signal assignments, clock edges, and branch/loop structure.
+
+**`parse_monitor_with_json.py`** — extracts `build_phase` and `run_phase` from classes extending `uvm_monitor`: config_db gets, interface sampling, and analysis port writes.
+
+**`parse_seq_item_with_json.py`** — extracts field declarations (with rand qualifier) and constraint blocks from classes extending `uvm_sequence_item`.
+
+**`parse_seq_with_json.py`** — extracts the `body` task flow from classes extending `uvm_sequence #(T)`: create, randomize, start_item, finish_item, and UVM macros (`uvm_do`, `uvm_do_with`, etc.).
+
+**`constraint_preprocessor.py`** — extracts and normalizes rand variable constraints into numeric bounds (`original_min`, `original_max`, `FIXED_MASK`, `FIXED_VAL`) for use by the stimuli solver.
+
+> `parse_drivers.py`, `parse_seq.py`, `parse_seq_item.py` are earlier versions of the above. Prefer the `_with_json.py` versions.
+
+## Setup
+
+From the repo root:
 ```bash
-uv run python parser/sv_to_json.py <input.svh> <output.json>
+uv sync
 ```
-Outputs a full Concrete Syntax Tree (CST) JSON. Use this to inspect the tree; not required before running other scripts (they call pyslang internally).
 
----
+## How to Run
 
-### `parse_seq_item_with_json.py` — Sequence item fields and constraints
+All scripts are run from the `parser/` directory with `uv run`.
+
 ```bash
-uv run python parser/parse_seq_item_with_json.py <file.svh> [--format json] [--pretty] [--no-diags]
+# CST JSON (required input for downstream tools)
+uv run sv_to_json.py <input.svh> <output.json>
+
+# Component parsers — text output by default, add --format json for JSON
+uv run parse_driver_with_json.py <file.svh>
+uv run parse_monitor_with_json.py <file.svh>
+uv run parse_seq_item_with_json.py <file.svh>
+uv run parse_seq_with_json.py <file.svh>
+
+# Constraint bounds extraction
+uv run constraint_preprocessor.py <file.svh>
+uv run constraint_preprocessor.py <file.svh> --out result.txt
 ```
-**Output:** fields (`name`, `sv_type`, `rand_mode`) and constraint text for each `uvm_sequence_item` subclass.  
-**Default output file:** `<input>_seq_item_summary.txt` (or `.json`)
 
-**Assumptions / Limitations:**
-- Detects seq_item classes by `extends uvm_sequence_item` (direct or through inheritance chain)
-- Fields named `name`, `this`, `state`, `seed`, `on_ff` are ignored
-- Only locally declared fields are extracted — inherited fields are not included
-- Constraint text is reconstructed from CST tokens; formatting may differ from source
+All parsers default to writing output next to the input file with a descriptive suffix (e.g., `stress.pkg_seq_item_summary.txt`). Use `--out` to override.
 
-> `parse_seq_item.py` appears to be an older text-only version of this script. *(Confirm with author: deprecated?)*
+## Inputs and Outputs
 
----
+| Script | Input | Output |
+|--------|-------|--------|
+| `sv_to_json.py` | `.sv` / `.svh` | CST JSON |
+| `parse_driver_with_json.py` | `.sv` / `.svh` | `_summary.txt` or `_summary_json.json` |
+| `parse_monitor_with_json.py` | `.sv` / `.svh` | `_monitor_summary.txt` or `.json` |
+| `parse_seq_item_with_json.py` | `.sv` / `.svh` | `_seq_item_summary.txt` or `.json` |
+| `parse_seq_with_json.py` | `.sv` / `.svh` | `__seq_summary.txt` or `.json` |
+| `constraint_preprocessor.py` | `.sv` / `.svh` | `_constraint_summary.txt` |
 
-### `parse_seq_with_json.py` — Sequence body flow
-```bash
-uv run python parser/parse_seq_with_json.py <file.svh> [--format json] [--include-calls]
-```
-**Output:** ordered event list (`declare`, `create`, `randomize`, `start`, `finish`, macro events) for each `uvm_sequence #(T)` subclass.  
-**Default output file:** `<input>__seq_summary.txt` (or `.json`)
+## Assumptions
 
-**Assumptions / Limitations:**
-- Detects sequence classes by `extends uvm_sequence #(T)`; uses `T` to identify relevant handles
-- Inline `randomize() with { ... }` constraints are extracted and shown separately
-- `if/else` and `while` context is tracked per event via a path field
-- Generic calls omitted by default; use `--include-calls` to include
+- Input files follow UVM coding conventions. Parsers identify components by base class name (`uvm_driver`, `uvm_monitor`, `uvm_sequence`, `uvm_sequence_item`) — they are not general-purpose SV parsers.
+- Both the class declaration and any out-of-class method definitions (e.g., `task sfr_driver::run_phase(...)`) must be in the same input file.
+- Only locally declared fields and constraints are extracted; inherited members are not expanded.
+- `pyslang` will emit diagnostics when UVM base class symbols are not in scope (common when parsing a single package file without the full UVM library). These are safely ignored — parsing still completes.
 
-> `parse_seq.py` appears to be an older text-only version. *(Confirm with author: deprecated?)*
+## Observed Limitations
 
----
-
-### `parse_driver_with_json.py` — Driver run_phase flow
-```bash
-uv run python parser/parse_driver_with_json.py <file.svh> [--format json]
-```
-**Output:** event trace of `run_phase` for each `uvm_driver #(T)` subclass.  
-**Default output file:** `<input>_summary.txt` (or `<input>_summary_json.json`)
-
-**Event kinds:** `declare`, `seq_get` (`get_next_item`/`try_next_item`/`get`), `seq_done` (`item_done`/`put_response`), `assign`, `edge`, `wait`, `branch`, `loop`
-
-**Assumptions / Limitations:**
-- Only `run_phase` is extracted
-- Class-level fields are emitted as `declare` events at the top
-- Timing controls other than `@(posedge/negedge <signal>)` are silently skipped
-- Generic calls not in the sequencer handshake list are not emitted
-
-> `parse_drivers.py` appears to be an older version (missing `MemberAccessExpression` handling in call resolution). *(Confirm with author: deprecated?)*
-
----
-
-### `parse_monitor_with_json.py` — Monitor phase flows
-```bash
-uv run python parser/parse_monitor_with_json.py <file.svh> [--format json]
-```
-**Output:** event trace for `build_phase` and `run_phase` of each `uvm_monitor` subclass.  
-**Default output file:** `<input>_monitor_summary.txt` (or `<input>_monitor_summary_json.json`)
-
-**Assumptions / Limitations:**
-- Only classes directly `extends uvm_monitor` are detected (no inheritance chain resolution)
-- Supports `@(vif.mon_cb)` style timing controls in addition to `@(posedge clk)`
-- UVM macros inside `EmptyStatement` nodes are captured via trivia inspection
-
-> No `parse_monitor.py` (non-JSON version) found. *(Confirm with author: was one planned?)*
-
----
-
-### `constraint_preprocessor.py` — Constraint value ranges
-```bash
-uv run python parser/constraint_preprocessor.py <file.svh> [--out result.txt]
-```
-**Output:** per `rand` variable in each `uvm_sequence_item` subclass:
-- `original_min` / `original_max` — from `inside {[A:B]}` or relational constraints
-- `FIXED_MASK` / `FIXED_VAL` — from `var[msb:lsb] == value` bit-fix constraints
-
-**Supported constraint forms:** `inside {[A:B]}`, `< <= > >=`, `var[msb:lsb] == value`
-
-**Limitations:**
-- Symbolic constants (e.g. `MODE0_OFFSET`) in ranges cannot be resolved — only integer literals
-- Cross-variable constraints are skipped
-- Conflicting fixed-bit assignments on the same variable raise `ValueError`
-
-> Intended output destination (assembler vs stimuli) unclear from code alone. *(Confirm with author)*
-
----
-
-## General Limitations
-
-- Not a full SV compiler — relies on UVM coding conventions; unrecognized constructs are silently skipped
-- Files with missing includes or macros will produce pyslang diagnostics; scripts continue but output may be incomplete
-- CST JSON structure is `pyslang`-version-dependent; scripts target `pyslang >= 10.0.0`
+- `constraint_preprocessor.py` only handles simple single-variable constraints (`inside`, `<`, `<=`, `>`, `>=`, bit-slice `==`). Running it on `stress.pkg.sv` produces no output because that file's constraints use inline `with { ... }` syntax on `randomize()` calls, which is not in the supported subset. *(Need to confirm with author: is there a test file where this script works as intended?)*
+- `parse_drivers.py` and `parse_driver_with_json.py` both default to writing `<basename>_summary.txt`, so running both on the same file overwrites the earlier output.
+- Diagnostics from `parse_seq_item_with_json.py` print as `<pyslang.pyslang.Diagnostic object>` rather than a human-readable message.
