@@ -190,7 +190,7 @@ Error: req_data_t is unknown in seq_stim_if.svh line 10
 Error: `NUM_CONSTRAINTS undefined in req_data.svh line 2
 ```
 
-Root cause: `seq_stim_if.svh` uses `req_data_t` which is defined in `req_data.svh`, and `req_data.svh` uses `` `NUM_CONSTRAINTS `` which is defined in `constants.svh`. The correct include order has not been established. *(Need to confirm with author: is there a correct compile order or build script?)*
+Root cause: `seq_stim_if.svh` uses `req_data_t` which is defined in `req_data.svh`, and `req_data.svh` uses `` `NUM_CONSTRAINTS `` which is defined in `constants.svh`. The syntax errors have since been fixed by the author, but the example still requires the `itf` interface definition which is maintained by a separate team member (Zhiheng). The complete compilable example requires obtaining the full RTL from him.
 
 ## find_range.py
 
