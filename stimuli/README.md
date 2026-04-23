@@ -96,11 +96,10 @@ stimuli/
 ├── stimuli_fsm/          — core FSM hardware + Python RTL generation tools
 ├── constraint-example1/  — integration example connecting seq_fsm, stimuli_fsm, and drv_fsm
 ├── majd_examples/        — reference solver examples (dist, bit-assign)
-├── find_range.py         — constraint region extractor (standalone)
-├── multirange.sv         — two-region combinational solver
-├── multirange_gt2.sv     — N-region generalized solver
-├── composite1.sv         — composite constraint solver prototype
-└── genus_*.rep           — synthesis area reports for multirange solvers
+├── find_range.py         — constraint region extractor; feeds multirange.sv / multirange_gt2.sv
+├── multirange.sv         — two-region combinational solver (takes bounded LFSR input)
+├── multirange_gt2.sv     — N-region generalized solver (takes bounded LFSR input)
+└── composite1.sv         — composite constraint solver prototype
 ```
 
 ## stimuli_fsm — Core Flow
@@ -210,20 +209,14 @@ Variable : addr
   Region 2: min=32   max=63
 ```
 
-*(Need to confirm with author: is find_range.py intended to feed into composite1.sv / constraint_solver.sv, or is it standalone?)*
+`find_range.py` is intended to feed into `multirange.sv` and `multirange_gt2.sv` — it extracts the valid regions, which those solvers then use to map bounded LFSR output to legal values.
 
 ## multirange.sv / multirange_gt2.sv
 
-Combinational RTL solvers that map an LFSR input to a value within a union of legal ranges, proportional to each region's span.
+Combinational RTL solvers that map an LFSR input to a value within a union of legal ranges, proportional to each region's span. Both take a bounded LFSR input, the same way other constraint solvers in the stimuli FSM flow do. `find_range.py` is used to extract the region bounds that these modules operate on.
 
 - `multirange.sv` — two fixed regions (`min0/max0`, `min1/max1`)
 - `multirange_gt2.sv` — parameterized N regions (`N_REGIONS`, arrays of `min_bounds`/`max_bounds`)
-
-Synthesis reports (`genus_*.rep`) using ASAP7 standard cells show:
-- `multirange.sv`: 3021 cells, total area 8281.593
-- `multirange_gt2.sv`: 3786 cells, total area 10262.401
-
-*(Need to confirm with author: relationship to bounded_LFSR and main stimuli_fsm flow.)*
 
 ## Known Issues / Limitations
 
