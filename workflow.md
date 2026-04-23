@@ -5,29 +5,23 @@ System generates **3 RTL blocks** (Sequence, Coverage and Stimuli FSMs)  + an **
 
 ![System-overview](./images/system-overview.png)
 
-**TODO**: 
-- [ ] Will driver and monitor be somewhat static? (i.e. will they change much between designs?) Answer: depending on protocol
-- [ ] Will Coverage decide when to stop? Or orchestrator? Or by finishing all sequences? Answer: no (show usage, explort all bins/hits to user)
-- Transaction: the lowest level seq_item (research how that looks like? is it signals-ish?)
-
-**Things to look into**:
-- [ ] How do we enumerate PRNG bank? how will parser look? how will stimuli FSM work?
-Answer: Bounded LFSR for everything (pass in parameters by Seq FSM), have 1-to-1 additional constraint solvers, if required.
+**Notes**: 
+- Driver and Monitor are protocol-aware and may change between designs depending on the protocol.
+- Coverage exports all bin/hit counts to the user; it does not decide when to stop.
+- Transaction: the lowest level seq_item (maps to DUT-level signals)
+- Bounded LFSR is used for all stimulus generation. The Seq FSM passes bounds and constraint IDs to the Stimuli FSM; per-constraint solver modules handle transformation.
 
 ## Execution overview
 There will be 2 independent workflows:
 1. Sequence -> Solver -> Driver interaction
 ```bash
-Step 0: Load seed into Solver FSM
-Step 1: Orchestrator grants token to Seq FSM 1
-Step 2: Seq FSM 1 executes this loop for its seq_items:
+Step 0: Load seed into Stimuli FSM
+Step 1: Seq FSM executes this loop for its seq_items:
         - Determine next seq_item to execute based on conditional logic
-        - Request stimulus data from Solver FSM for that seq_item
+        - Request stimulus data from Stimuli FSM for that seq_item
         - Issue transaction to Driver
         - Wait for driver to complete transaction
         - Repeat or finish when done
-Step 3: Seq FSM 1 signals completion to Orchestrator
-Step 4: Orchestrator grants token to next Seq FSM
 ```
 2. Coverage -> Monitor interaction
 ```bash
@@ -35,7 +29,7 @@ Step 1: Coverage FSM determines when to sample events
 Step 2: If Coverage FSM decides to sample:
     - Sample transaction from Monitor's observed DUT signals
     - Coverage FSM updates counters/bins based on sampled transaction
-Step 3: Repeat until coverage goals are met or test terminates from Orchestrator
+Step 3: Repeat until test terminates
 ```
 
 **Note**: Driver and Monitor should be protocol-aware
@@ -51,21 +45,18 @@ There are 5 handshake protocols/interfaces required:
 Across all interfaces:
 - `ready` / `valid` for data transfter
 - `start` / `done` for control
-- `token` / `grant` for arbitration
 
-**TODO**:
-- [ ] Define handshake within the sequence FSM too? (between sequence <-> seq_item?)
+**Note**: Define handshake within the sequence FSM too? (between sequence <-> seq_item?) — TBD
 
 #### Orchestrator <-> Sequence FSM
 ```systemverilog
-interface orch_seq_ifm #(
+interface orch_seq_if #(
     parameter int NUM_SEQUENCES = 8
 ) (
     input  logic clk, rst_n
 );
     
     // Orchestrator -> Sequence
-    logic [NUM_SEQUENCES-1:0] token_grant;
     logic                     start;
 
     // Sequence -> Orchestrator
@@ -77,6 +68,8 @@ endinterface
 
 #### Sequence FSM <-> Stimuli FSM
 ![Seq-Stimuli Interaction](./images/seq-stimuli.png)
+
+Current implementation in `stimuli_fsm/seq_stim_if.svh`:
 
 ```systemverilog
 interface seq_stim_if #(
@@ -133,6 +126,8 @@ interface seq_stim_if #(
 endinterface
 ```
 
+> **Note**: The assembler-generated `seq_stim_if` (in `rtl_example1.sv` / `rtl_example2.sv`) uses a variant where `lower_bound`, `upper_bound`, and `constraint_id` are packed into a `req_item_s` struct on the `req` signal, instead of separate signals.
+
 #### Orchestrator <-> Coverage FSM
 ```systemverilog
 interface orch_cov_if (
@@ -151,40 +146,58 @@ endinterface
 ```
 
 #### Sequence FSM <-> Driver
-**TODO**:
-- [ ] Are there passive wires for sequence to observe from driver? This is protocol-aware though
-Answer: there is mecahnism called driver request and response, research how that looks like
 
-**NOTE**: Include how driver could signal if seq_item should be skipped
+**Note**: Driver uses a request/response mechanism. The seq_item is passed as a packed struct (`req_item_s`). Driver signals completion via `rsp_valid`/`rsp_ready`.
+
+Current implementation in `stimuli/constraint-example1/seq_drv_if.svh`:
+
 ```systemverilog
-interface seq_drv_if #(
-    parameter TX_W = 64
-)(
-    input logic clk, rst_n
+interface seq_drv_if (
+    input logic clk,
+    input logic rst_n
 );
+    // Data from seq_fsm to drv
+    req_item_s data_to_driver;
 
-  // Request channel
-  logic         tx_valid;
-  logic         tx_ready;
-  logic [TX_W-1:0] tx_payload;
+    // Handshake
+    logic req_valid;
+    logic req_ready;
+    logic rsp_valid;
+    logic rsp_ready;
 
-  // Response channel
-  logic         rsp_valid;
-  logic         rsp_ready;
-  typedef enum logic [1:0] {
-    TX_OK,
-    TX_SKIP,
-    TX_ERROR
-  } tx_status_t;
-  tx_status_t status;
+    modport SEQ (
+        input clk,
+        input rst_n,
+
+        output data_to_driver,
+        output req_valid,
+        input req_ready,
+
+        input rsp_valid,
+        output rsp_ready
+    );
+
+    modport DRV (
+        input clk,
+        input rst_n,
+
+        input data_to_driver,
+        input req_valid,
+        output req_ready,
+
+        output rsp_valid,
+        input rsp_ready
+    );
 
 endinterface
 ```
 
-**TODO**: 
-- [ ] Are there passive wires for coverage to observe?
+> **Note**: The assembler-generated `seq_drv_if` (in `rtl_example1.sv` / `rtl_example2.sv`) uses `req_item_s req` instead of `req_item_s data_to_driver` as the signal name.
 
 #### Coverage FSM <-> Monitor
+
+**Note**: Are there passive wires for coverage to observe? — TBD, protocol-aware.
+
 ```systemverilog
 interface cov_mon_if #(
     parameter MON_W = 64
