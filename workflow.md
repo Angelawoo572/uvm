@@ -126,7 +126,7 @@ interface seq_stim_if #(
 endinterface
 ```
 
-> **Note**: The assembler-generated `seq_stim_if` (in `rtl_example1.sv` / `rtl_example2.sv`) uses a variant where `lower_bound`, `upper_bound`, and `constraint_id` are packed into a `req_item_s` struct on the `req` signal, instead of separate signals.
+> **Note**: The assembler-generated `seq_stim_if` (in `rtl_example1.sv` / `rtl_example2.sv`) uses `req_item_s req` as the request signal (carrying the full seq_item struct), rather than separate `lower_bound`, `upper_bound`, and `constraint_id` signals.
 
 #### Orchestrator <-> Coverage FSM
 ```systemverilog
@@ -196,7 +196,7 @@ endinterface
 
 #### Coverage FSM <-> Monitor
 
-**Note**: Are there passive wires for coverage to observe? — TBD, protocol-aware.
+**Note**: Coverage FSM samples data from the Monitor, not directly from DUT signals. The Monitor observes DUT outputs and forwards them to Coverage via this interface.
 
 ```systemverilog
 interface cov_mon_if #(
