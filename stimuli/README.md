@@ -132,7 +132,7 @@ uv run main.py constraints.txt test_output/
 
 Output files appear in `test_output/`. The `constraint_solver.sv` template is populated with instantiations and module definitions for each constraint. A `constraints.db` file maps each constraint to its `solver_output[N]` index, type, bounds, and generated module name.
 
-> Note: `constraints.txt` is generated from parser output. The specific parser script that produces it is pending confirmation with the parser team.
+> Note: `constraints.txt` is generated from parser output — use `parse_seq_item_with_json.py` for standalone constraint blocks, or `parse_seq_with_json.py` for inline randomize constraints. See the `parser/` README for usage.
 
 ### Constraint Types Supported by main.py
 
